@@ -36,6 +36,11 @@ public:
 
     }
 
+    constexpr operator bool () const
+    {
+        return !(data == 0);
+    }
+
     constexpr auto operator = (int16_t const that) -> fixed32&
     {
         data = that << FIX_SHIFT;
