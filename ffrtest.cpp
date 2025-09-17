@@ -14,12 +14,48 @@ uint16_t car[6] =
 
 
 
+class SDL_Context : public ffr::Context<64>
+{
+public:
+    SDL_Context()
+    {
+        SDL_CreateWindowAndRenderer(240,160,0,&win,&ren);
+    }
+
+    ~SDL_Context()
+    {
+
+    }
+
+    void clear() override
+    {
+        SDL_SetRenderDrawColor(ren,0,0,0,255);
+        SDL_RenderClear(ren);
+    }
+
+    void present() override
+    {
+        SDL_RenderPresent(ren);
+    }
+
+    void plot(uint16_t x, uint16_t y, uint16_t c) override
+    {
+        SDL_SetRenderDrawColor(ren,255,255,255,255);
+        SDL_RenderDrawPoint(ren,x,y);
+    }
+
+private:
+    SDL_Window* win;
+    SDL_Renderer* ren;
+};
+
 
 auto main(int argc, char *argv[]) -> int
 {
 
     SDL_Init(SDL_INIT_VIDEO);
 
+    SDL_Context c;
 
     bool running = true;
     while (running)
@@ -48,7 +84,11 @@ auto main(int argc, char *argv[]) -> int
         }
 
         //const auto sintable = ffr::math::makeTable< int,30,std::sinf >;
+        c.clear();
 
+        c.triangle(20,50,100,20,100,100, 0);
+
+        c.present();
 
 
     }
