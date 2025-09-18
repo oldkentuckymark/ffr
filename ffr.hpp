@@ -116,33 +116,155 @@ public:
         line(x0,y0,x0,y1,color);
     }
 
-    void triangle(  int16_t x0, int16_t y0,
-                  int16_t x1, int16_t y1,
-                  int16_t x2, int16_t y2,
-                  int16_t color  )  //TODO: convert to fixed32!!!!!
+    void triangle(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, uint16_t color)
     {
-        // Sort vertices by y-coordinate ascending (y0 <= y1 <= y2)
-        if (y0 > y1) { int16_t tx = x0; int16_t ty = y0; x0 = x1; y0 = y1; x1 = tx; y1 = ty; }
-        if (y1 > y2) { int16_t tx = x1; int16_t ty = y1; x1 = x2; y1 = y2; x2 = tx; y2 = ty; }
-        if (y0 > y1) { int16_t tx = x0; int16_t ty = y0; x0 = x1; y0 = y1; x1 = tx; y1 = ty; }
+        // Sort vertices by y-coordinate to ensure y1 <= y2 <= y3 (top to bottom)
+        if (y1 > y2)
+        {
+            int16_t tempX = x1, tempY = y1;
+            x1 = x2;
+            y1 = y2;
+            x2 = tempX;
+            y2 = tempY;
+        }
 
-        int16_t totalHeight = y2 - y0;
-        for (int16_t i = 0; i < totalHeight; ++i) {
-            bool secondHalf = i > y1 - y0 || y1 == y0;
-            int16_t segmentHeight = secondHalf ? y2 - y1 : y1 - y0;
-            float alpha = (float)i / totalHeight;
-            float beta  = (float)(i - (secondHalf ? y1 - y0 : 0)) / segmentHeight;
+        if (y1 > y3)
+        {
+            int16_t tempX = x1, tempY = y1;
+            x1 = x3;
+            y1 = y3;
+            x3 = tempX;
+            y3 = tempY;
+        }
 
-            int16_t ax = x0 + (int16_t)((x2 - x0) * alpha);
-            int16_t bx = secondHalf
-                             ? x1 + (int16_t)((x2 - x1) * beta)
-                             : x0 + (int16_t)((x1 - x0) * beta);
+        if (y2 > y3)
+        {
+            int16_t tempX = x2, tempY = y2;
+            x2 = x3;
+            y2 = y3;
+            x3 = tempX;
+            y3 = tempY;
+        }
 
-            if (ax > bx) { int16_t tmp = ax; ax = bx; bx = tmp; }
+        // Step 2: Track edges using Bresenham's algorithm, and fill between them
 
-            lineHorizontal(y0 + i, ax, bx, color);
+        // From (x1, y1) to (x2, y2) - Left edge
+        int16_t dx = (x2 >= x1) ? (x2 - x1) : (x1 - x2);
+        int16_t dy = (y2 >= y1) ? (y2 - y1) : (y1 - y2);
+        int16_t sx = (x1 < x2) ? 1 : -1;
+        int16_t sy = (y1 < y2) ? 1 : -1;
+        int16_t err = dx - dy;
+
+        int16_t x = x1, y = y1;
+        while (y <= y2)
+        {
+            if (y >= y1 && y <= y3)
+            {
+                // Find the leftmost x-coordinate (intersection with the first edge)
+                int16_t x_left = x;
+
+                // Find the rightmost x-coordinate (intersection with the second edge)
+                int16_t dx2 = (x3 >= x2) ? (x3 - x2) : (x2 - x3);
+                int16_t dy2 = (y3 >= y2) ? (y3 - y2) : (y2 - y3);
+                int16_t sx2 = (x2 < x3) ? 1 : -1;
+                int16_t sy2 = (y2 < y3) ? 1 : -1;
+                int16_t err2 = dx2 - dy2;
+
+                int16_t x_right = x2, y_right = y2;
+                while (y_right < y3 && y != y_right)
+                {
+                    int16_t e2 = err2 * 2;
+                    if (e2 > -dy2)
+                    {
+                        err2 -= dy2;
+                        x_right += sx2;
+                    }
+                    if (e2 < dx2)
+                    {
+                        err2 += dx2;
+                        y_right += sy2;
+                    }
+                }
+
+                // Fill between x_left and x_right using lineHorizontal
+                lineHorizontal(x_left, y, x_right, color); // Use the assumed lineHorizontal() function
+            }
+
+            if (x == x2 && y == y2)
+                break;
+            int16_t e2 = err * 2;
+            if (e2 > -dy)
+            {
+                err -= dy;
+                x += sx;
+            }
+            if (e2 < dx)
+            {
+                err += dx;
+                y += sy;
+            }
+        }
+
+        // From (x2, y2) to (x3, y3) - Right edge
+        dx = (x3 >= x2) ? (x3 - x2) : (x2 - x3);
+        dy = (y3 >= y2) ? (y3 - y2) : (y2 - y3);
+        sx = (x2 < x3) ? 1 : -1;
+        sy = (y2 < y3) ? 1 : -1;
+        err = dx - dy;
+
+        x = x2, y = y2;
+        while (y <= y3)
+        {
+            if (y >= y1 && y <= y3)
+            {
+                // Fill between x_left and x_right using lineHorizontal
+                int16_t x_left = x;
+
+                // Find the rightmost x-coordinate (intersection with the third edge)
+                int16_t dx3 = (x1 >= x3) ? (x1 - x3) : (x3 - x1);
+                int16_t dy3 = (y1 >= y3) ? (y1 - y3) : (y3 - y1);
+                int16_t sx3 = (x3 < x1) ? 1 : -1;
+                int16_t sy3 = (y3 < y1) ? 1 : -1;
+                int16_t err3 = dx3 - dy3;
+
+                int16_t x_right = x3, y_right = y3;
+                while (y_right > y1 && y != y_right)
+                {
+                    int16_t e2 = err3 * 2;
+                    if (e2 > -dy3)
+                    {
+                        err3 -= dy3;
+                        x_right += sx3;
+                    }
+                    if (e2 < dx3)
+                    {
+                        err3 += dx3;
+                        y_right += sy3;
+                    }
+                }
+
+                // Fill between x_left and x_right using lineHorizontal
+                lineHorizontal(x_left, y, x_right, color); // Use the assumed lineHorizontal() function
+            }
+
+            if (x == x3 && y == y3)
+                break;
+            int16_t e2 = err * 2;
+            if (e2 > -dy)
+            {
+                err -= dy;
+                x += sx;
+            }
+            if (e2 < dx)
+            {
+                err += dx;
+                y += sy;
+            }
         }
     }
+
+
+
 
     virtual auto clear() -> void
     {
