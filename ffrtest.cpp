@@ -19,7 +19,8 @@ class SDL_Context : public ffr::Context<64>
 public:
     SDL_Context()
     {
-        SDL_CreateWindowAndRenderer(240,160,0,&win,&ren);
+        SDL_CreateWindowAndRenderer(240*4,160*4,0,&win,&ren);
+        SDL_RenderSetScale(ren, 4.0,4.0);
     }
 
     ~SDL_Context()
