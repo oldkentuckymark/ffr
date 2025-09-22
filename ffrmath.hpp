@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <cstdint>
-#include <numbers>
 #include <type_traits>
 
 namespace ffr::math
@@ -111,7 +110,7 @@ public:
 
 };
 
-consteval math::fixed32 operator""_fx(long double f)
+consteval auto operator""_fx(long double f) -> math::fixed32
 {
     math::fixed32 r(static_cast<float>(f));
     return r;
@@ -154,6 +153,11 @@ constexpr auto cot(fixed32 const n) -> fixed32
     {
         return cos(n) / sin(n);
     }
+}
+
+constexpr auto abs(auto n) -> decltype(n)
+{
+    return (n > 0) ? n : -n;
 }
 
 constexpr auto abs(fixed32 n) -> fixed32
@@ -483,7 +487,7 @@ constexpr fixed32 PI = 3.14159265_fx;
 
 }
 
-consteval ffr::math::fixed32 operator""_fx(long double f)
+consteval auto operator""_fx(long double f) -> ffr::math::fixed32
 {
     ffr::math::fixed32 r(static_cast<float>(f));
     return r;

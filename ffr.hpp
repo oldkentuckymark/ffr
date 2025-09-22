@@ -30,9 +30,9 @@ constexpr auto Convert555to888(uint16_t color) -> std::array<uint8_t, 4>
 
 enum class DrawType : uint8_t
 {
-    Points,
-    Lines,
-    Triangles
+    Points = 1,
+    Lines = 2,
+    Triangles = 3
 };
 
 
@@ -275,10 +275,9 @@ public:
 
     }
 
-    auto setVertexPointer(uint8_t size, void* vp) -> void
+    auto setVertexPointer(void* vp) -> void
     {
         vertex_pointer_ = vp;
-        vertex_size_ = size;
     }
     auto setColorPointer(uint16_t* cp)-> void
     {
@@ -290,18 +289,27 @@ public:
         view_height_ = h;
     }
 
-    auto drawArray(DrawType dt, uint8_t first, uint8_t count) -> void;
+    auto drawArray(DrawType dt, uint8_t first, uint8_t count) -> void
+    {
+        //copy verts and cols into bufs
+        for(uint8_t i = first; i < first + count; ++i)
+        {
+        //////////
+        }
+    }
 
 private:
     uint16_t view_width_ = 0;
     uint16_t view_height_ = 0;
 
     void* vertex_pointer_ = nullptr;
-    uint16_t* color_pointer_ = nullptr;
     uint8_t vertex_size_ = 0;
+    uint16_t* color_pointer_ = nullptr;
 
-    std::array<math::vec4, MAX_VERTS> vert_buf_;
+    std::array<math::vec3, MAX_VERTS> vert_buf_;
+    uint8_t vert_buf_current_size_ = 0;
     std::array<uint16_t, (MAX_VERTS/3) + (MAX_VERTS%3)> color_buf_;
+    uint8_t color_buf_current_size_ = 0;
 
     auto vertex_pipeline() -> void;
 
@@ -310,34 +318,3 @@ private:
 
 
 }
-
-
-
-// void triangle(  int16_t x0, int16_t y0,
-//               int16_t x1, int16_t y1,
-//               int16_t x2, int16_t y2,
-//               int16_t color  )
-// {
-//     // Sort vertices by y-coordinate ascending (y0 <= y1 <= y2)
-//     if (y0 > y1) { int16_t tx = x0; int16_t ty = y0; x0 = x1; y0 = y1; x1 = tx; y1 = ty; }
-//     if (y1 > y2) { int16_t tx = x1; int16_t ty = y1; x1 = x2; y1 = y2; x2 = tx; y2 = ty; }
-//     if (y0 > y1) { int16_t tx = x0; int16_t ty = y0; x0 = x1; y0 = y1; x1 = tx; y1 = ty; }
-
-//     int16_t totalHeight = y2 - y0;
-//     for (int16_t i = 0; i < totalHeight; ++i) {
-//         bool secondHalf = i > y1 - y0 || y1 == y0;
-//         int16_t segmentHeight = secondHalf ? y2 - y1 : y1 - y0;
-//         float alpha = (float)i / totalHeight;
-//         float beta  = (float)(i - (secondHalf ? y1 - y0 : 0)) / segmentHeight;
-
-//         int16_t ax = x0 + (int16_t)((x2 - x0) * alpha);
-//         int16_t bx = secondHalf
-//                          ? x1 + (int16_t)((x2 - x1) * beta)
-//                          : x0 + (int16_t)((x1 - x0) * beta);
-
-//         if (ax > bx) { int16_t tmp = ax; ax = bx; bx = tmp; }
-
-//         lineHorizontal(y0 + i, ax, bx, color);
-//     }
-// }
-
