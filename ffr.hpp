@@ -275,7 +275,7 @@ public:
 
     }
 
-    auto setVertexPointer(void* vp) -> void
+    auto setVertexPointer(math::vec3* vp) -> void
     {
         vertex_pointer_ = vp;
     }
@@ -294,7 +294,7 @@ public:
         //copy verts and cols into bufs
         for(uint8_t i = first; i < first + count; ++i)
         {
-        //////////
+            vert_buf_[i-first] = *(vertex_pointer_ + i);
         }
     }
 
@@ -302,8 +302,7 @@ private:
     uint16_t view_width_ = 0;
     uint16_t view_height_ = 0;
 
-    void* vertex_pointer_ = nullptr;
-    uint8_t vertex_size_ = 0;
+    math::vec3* vertex_pointer_ = nullptr;
     uint16_t* color_pointer_ = nullptr;
 
     std::array<math::vec3, MAX_VERTS> vert_buf_;
