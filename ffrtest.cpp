@@ -87,7 +87,7 @@ auto main(int argc, char *argv[]) -> int
         //const auto sintable = ffr::math::makeTable< int,30,std::sinf >;
         c.clear();
 
-        c.triangle(20,23,100,20,100,100, 0);
+        c.triangle(20,23,100,20,110,100, 0);
 
         c.present();
 

@@ -39,13 +39,11 @@ enum class DrawType : uint8_t
 class VertexFunction
 {
 public:
-    VertexFunction() = default;
-    virtual ~VertexFunction() = default;
     virtual auto operator()(const ffr::math::vec4& in) -> ffr::math::vec4 = 0;
 };
 
 
-template<uint8_t MAX_VERTS>
+template<uint8_t MAX_VERTS = 128>
 class Context
 {
 public:
@@ -55,6 +53,11 @@ public:
 
 
     virtual auto plot(uint16_t x, uint16_t y, uint16_t color) -> void = 0;
+
+    auto setVertexFunction(VertexFunction* vf) -> void
+    {
+        vertex_function_ = vf;
+    }
 
     virtual auto line(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color) -> void
     {
@@ -116,153 +119,100 @@ public:
         line(x0,y0,x0,y1,color);
     }
 
-    void triangle(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3, uint16_t color)
-    {
-        // Sort vertices by y-coordinate to ensure y1 <= y2 <= y3 (top to bottom)
-        if (y1 > y2)
-        {
-            int16_t tempX = x1, tempY = y1;
-            x1 = x2;
-            y1 = y2;
-            x2 = tempX;
-            y2 = tempY;
+    void triangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t color) {
+        // This implementation uses only 16-bit integer math (Bresenham-style)
+        // and avoids all C++ standard library functions.
+        int16_t v_top_x = x0, v_top_y = y0;
+        int16_t v_mid_x = x1, v_mid_y = y1;
+        int16_t v_bot_x = x2, v_bot_y = y2;
+        int16_t temp_x, temp_y;
+
+        // --- 1. Manual Sort ---
+        // Sort points so v_top_y <= v_mid_y <= v_bot_y
+        if (v_top_y > v_mid_y) { temp_x = v_top_x; v_top_x = v_mid_x; v_mid_x = temp_x; temp_y = v_top_y; v_top_y = v_mid_y; v_mid_y = temp_y; }
+        if (v_mid_y > v_bot_y) { temp_x = v_mid_x; v_mid_x = v_bot_x; v_bot_x = temp_x; temp_y = v_mid_y; v_mid_y = v_bot_y; v_bot_y = temp_y; }
+        if (v_top_y > v_mid_y) { temp_x = v_top_x; v_top_x = v_mid_x; v_mid_x = temp_x; temp_y = v_top_y; v_top_y = v_mid_y; v_mid_y = temp_y; }
+
+        // --- 2. Trivial Case: Horizontal line ---
+        if (v_top_y == v_bot_y) {
+            int16_t min_x = v_top_x;
+            int16_t max_x = v_top_x;
+            if (v_mid_x < min_x) min_x = v_mid_x;
+            if (v_mid_x > max_x) max_x = v_mid_x;
+            if (v_bot_x < min_x) min_x = v_bot_x;
+            if (v_bot_x > max_x) max_x = v_bot_x;
+            lineHorizontal(min_x, v_top_y, max_x, color);
+            return;
         }
 
-        if (y1 > y3)
-        {
-            int16_t tempX = x1, tempY = y1;
-            x1 = x3;
-            y1 = y3;
-            x3 = tempX;
-            y3 = tempY;
-        }
+        // --- 3. Setup Bresenham Edge Steppers ---
+        // Stepper A traces the long edge (top -> bottom)
+        int16_t dx_a = v_bot_x - v_top_x;
+        int16_t dy_a = v_bot_y - v_top_y;
+        int16_t x_step_a = 1;
+        if (dx_a < 0) { dx_a = -dx_a; x_step_a = -1; }
+        int16_t error_a = dy_a >> 1;
+        int16_t x_a = v_top_x;
 
-        if (y2 > y3)
-        {
-            int16_t tempX = x2, tempY = y2;
-            x2 = x3;
-            y2 = y3;
-            x3 = tempX;
-            y3 = tempY;
-        }
+        // Stepper B will trace the upper int16_t edge (top -> middle) first
+        int16_t dx_b = v_mid_x - v_top_x;
+        int16_t dy_b = v_mid_y - v_top_y;
+        int16_t x_step_b = 1;
+        if (dx_b < 0) { dx_b = -dx_b; x_step_b = -1; }
+        int16_t error_b = dy_b >> 1;
+        int16_t x_b = v_top_x;
 
-        // Step 2: Track edges using Bresenham's algorithm, and fill between them
+        // --- 4. Top half of triangle ---
+        // This part is skipped if the triangle is flat-top (top_y == mid_y)
+        for (int16_t y = v_top_y; y < v_mid_y; y++) {
+            lineHorizontal(x_a, y, x_b, color);
 
-        // From (x1, y1) to (x2, y2) - Left edge
-        int16_t dx = (x2 >= x1) ? (x2 - x1) : (x1 - x2);
-        int16_t dy = (y2 >= y1) ? (y2 - y1) : (y1 - y2);
-        int16_t sx = (x1 < x2) ? 1 : -1;
-        int16_t sy = (y1 < y2) ? 1 : -1;
-        int16_t err = dx - dy;
+            // Advance stepper A along the long edge
+            error_a -= dx_a;
+            while (error_a < 0) {
+                x_a += x_step_a;
+                error_a += dy_a;
+            }
 
-        int16_t x = x1, y = y1;
-        while (y <= y2)
-        {
-            if (y >= y1 && y <= y3)
-            {
-                // Find the leftmost x-coordinate (intersection with the first edge)
-                int16_t x_left = x;
-
-                // Find the rightmost x-coordinate (intersection with the second edge)
-                int16_t dx2 = (x3 >= x2) ? (x3 - x2) : (x2 - x3);
-                int16_t dy2 = (y3 >= y2) ? (y3 - y2) : (y2 - y3);
-                int16_t sx2 = (x2 < x3) ? 1 : -1;
-                int16_t sy2 = (y2 < y3) ? 1 : -1;
-                int16_t err2 = dx2 - dy2;
-
-                int16_t x_right = x2, y_right = y2;
-                while (y_right < y3 && y != y_right)
-                {
-                    int16_t e2 = err2 * 2;
-                    if (e2 > -dy2)
-                    {
-                        err2 -= dy2;
-                        x_right += sx2;
-                    }
-                    if (e2 < dx2)
-                    {
-                        err2 += dx2;
-                        y_right += sy2;
-                    }
+            // Advance stepper B along the upper int16_t edge
+            if (dy_b > 0) { // Avoid division by zero on a horizontal top edge
+                error_b -= dx_b;
+                while (error_b < 0) {
+                    x_b += x_step_b;
+                    error_b += dy_b;
                 }
-
-                // Fill between x_left and x_right using lineHorizontal
-                lineHorizontal(x_left, y, x_right, color); // Use the assumed lineHorizontal() function
-            }
-
-            if (x == x2 && y == y2)
-                break;
-            int16_t e2 = err * 2;
-            if (e2 > -dy)
-            {
-                err -= dy;
-                x += sx;
-            }
-            if (e2 < dx)
-            {
-                err += dx;
-                y += sy;
             }
         }
 
-        // From (x2, y2) to (x3, y3) - Right edge
-        dx = (x3 >= x2) ? (x3 - x2) : (x2 - x3);
-        dy = (y3 >= y2) ? (y3 - y2) : (y2 - y3);
-        sx = (x2 < x3) ? 1 : -1;
-        sy = (y2 < y3) ? 1 : -1;
-        err = dx - dy;
+        // --- 5. Bottom half of triangle ---
+        // Re-setup stepper B for the lower int16_t edge (middle -> bottom)
+        dx_b = v_bot_x - v_mid_x;
+        dy_b = v_bot_y - v_mid_y;
+        x_step_b = 1;
+        if (dx_b < 0) { dx_b = -dx_b; x_step_b = -1; }
+        error_b = dy_b >> 1;
+        x_b = v_mid_x;
 
-        x = x2, y = y2;
-        while (y <= y3)
-        {
-            if (y >= y1 && y <= y3)
-            {
-                // Fill between x_left and x_right using lineHorizontal
-                int16_t x_left = x;
+        for (int16_t y = v_mid_y; y <= v_bot_y; y++) {
+            lineHorizontal(x_a, y, x_b, color);
 
-                // Find the rightmost x-coordinate (intersection with the third edge)
-                int16_t dx3 = (x1 >= x3) ? (x1 - x3) : (x3 - x1);
-                int16_t dy3 = (y1 >= y3) ? (y1 - y3) : (y3 - y1);
-                int16_t sx3 = (x3 < x1) ? 1 : -1;
-                int16_t sy3 = (y3 < y1) ? 1 : -1;
-                int16_t err3 = dx3 - dy3;
+            // Advance stepper A along the long edge
+            error_a -= dx_a;
+            while (error_a < 0) {
+                x_a += x_step_a;
+                error_a += dy_a;
+            }
 
-                int16_t x_right = x3, y_right = y3;
-                while (y_right > y1 && y != y_right)
-                {
-                    int16_t e2 = err3 * 2;
-                    if (e2 > -dy3)
-                    {
-                        err3 -= dy3;
-                        x_right += sx3;
-                    }
-                    if (e2 < dx3)
-                    {
-                        err3 += dx3;
-                        y_right += sy3;
-                    }
+            // Advance stepper B along the lower int16_t edge
+            if (dy_b > 0) { // Avoid division by zero on a horizontal bottom edge
+                error_b -= dx_b;
+                while (error_b < 0) {
+                    x_b += x_step_b;
+                    error_b += dy_b;
                 }
-
-                // Fill between x_left and x_right using lineHorizontal
-                lineHorizontal(x_left, y, x_right, color); // Use the assumed lineHorizontal() function
-            }
-
-            if (x == x3 && y == y3)
-                break;
-            int16_t e2 = err * 2;
-            if (e2 > -dy)
-            {
-                err -= dy;
-                x += sx;
-            }
-            if (e2 < dx)
-            {
-                err += dx;
-                y += sy;
             }
         }
     }
-
 
 
 
@@ -291,16 +241,32 @@ public:
 
     auto drawArray(DrawType dt, uint8_t first, uint8_t count) -> void
     {
+
+        if((!vertex_pointer_) || (!color_pointer_)) { return; }
+
         //copy verts and cols into bufs
+        vert_buf_current_size_ = 0;
+        color_buf_current_size_ = 0;
+        current_draw_type_ = dt;
+
         for(uint8_t i = first; i < first + count; ++i)
         {
             vert_buf_[i-first] = *(vertex_pointer_ + i);
+            vert_buf_current_size_ = vert_buf_current_size_ + 1;
+
+            color_buf_[i-first] = *(color_pointer_ + i);
+            color_buf_current_size_ = color_buf_current_size_ + 1;
         }
+
+        vertex_pipeline();
+
     }
 
 private:
     uint16_t view_width_ = 0;
     uint16_t view_height_ = 0;
+
+    DrawType current_draw_type_ = DrawType::Lines;
 
     math::vec3* vertex_pointer_ = nullptr;
     uint16_t* color_pointer_ = nullptr;
@@ -310,7 +276,133 @@ private:
     std::array<uint16_t, (MAX_VERTS/3) + (MAX_VERTS%3)> color_buf_;
     uint8_t color_buf_current_size_ = 0;
 
-    auto vertex_pipeline() -> void;
+    VertexFunction* vertex_function_ = nullptr;
+
+    auto vertex_pipeline() -> void
+    {
+
+    }
+
+    // std::vector<Vertex> run_vertex_function(std::vector<Vertex>& in)
+    // {
+    //     std::vector<Vertex> out;
+    //     for (auto& i : in)
+    //     {
+    //         out.push_back(  Vertex{ vertex_function[0](i.pos) , i.col }  );
+    //     }
+    //     return out;
+    // }
+    // std::vector<Vertex> run_clip_function(std::vector<Vertex>& in)
+    // {
+    //     std::vector<Vertex> out;
+
+    //     for(uint8_t i = 0; i < in.size() - 1; i = i + 2)
+    //     {
+    //         Vertex pi1, pi2, po1, po2;
+    //         pi1 = in[i];
+    //         pi2 = in[i+1];
+    //         bool pi1in = clip_point(pi1);
+    //         bool pi2in = clip_point(pi2);
+    //         if(pi1in && pi2in)
+    //         {
+    //             out.push_back(pi1);
+    //             out.push_back(pi2);
+    //         }
+    //         else if(pi1in || pi2in)
+    //         {
+    //             clip_line_component(pi1,pi2, 0, 1.0_fx, po1, po2);
+    //             clip_line_component(po1,po2, 0, -1.0_fx, pi1, pi2);
+    //             clip_line_component(pi1,pi2, 1, 1.0_fx, po1, po2);
+    //             clip_line_component(po1,po2, 1, -1.0_fx, pi1, pi2);
+    //             clip_line_component(pi1,pi2, 2, 1.0_fx, po1, po2);
+    //             clip_line_component(po1,po2, 2, -1.0_fx, pi1, pi2);
+
+    //             out.push_back( pi1 );
+    //             out.push_back( pi2 );
+    //         }
+
+
+    //     }
+
+    //     return  out;
+    // }
+    // std::vector<Vertex> run_ndc_function(std::vector<Vertex>& in)
+    // {
+    //     std::vector<Vertex> out;
+    //     for (auto& i : in)
+    //     {
+    //         out.push_back( Vertex{ { i.pos / i.pos.w }, i.col });
+    //     }
+    //     return out;
+    // }
+    // std::vector<Vertex> run_windowtransform_function(std::vector<Vertex>& in)
+    // {
+    //     std::vector<Vertex> out;
+    //     for (auto& i : in)
+    //     {
+    //         out.push_back
+    //             (
+    //                 Vertex
+    //                 {
+    //                     {
+    //                         ((math::fixed32(xres) / 2.0_fx) * i.pos.x) + (static_cast<math::fixed32>(xres) / 2.0_fx),
+    //                         -((static_cast<math::fixed32>(yres) / 2.0_fx) * i.pos.y) + (static_cast<math::fixed32>(yres) / 2.0_fx),
+    //                         ((1.0_fx / 2.0_fx) * i.pos.z) + (1.0_fx / 2.0_fx),
+    //                         i.pos.w
+    //                     },
+    //                     i.col
+    //                 }
+    //                 );
+    //     }
+    //     return out;
+    // }
+
+    // void run_draw_function(std::vector<Vertex>& in)
+    // {
+    //     if(in.empty())
+    //     {
+    //         return;
+    //     }
+
+    //     for(uint32_t i = 0; i < in.size() - 1; i = i + 2)
+    //     {
+
+
+    //         //laserOff();
+    //         //laserMove(in[i].pos.x, in[i].pos.y);
+    //         //laserOn();
+    //         //laserColor(in[i].col.r, in[i].col.g, in[i].col.b);
+
+    //         line(static_cast<int16_t>(in[i].pos.x),
+    //              static_cast<int16_t>(in[i].pos.y),
+    //              static_cast<int16_t>(in[i+1].pos.x),
+    //              static_cast<int16_t>(in[i+1].pos.y),
+    //              in[i].col);
+
+
+    //         //laserMove(in[i+1].pos.x, in[i+1].pos.y);
+    //         //laserColor(in[i+1].col.r, in[i+1].col.g, in[i].col.b);
+    //     }
+    //     //laserOff();
+    // }
+
+    // // returns true if point is inside volume
+    // bool clip_point(const Vertex& in)
+    // {
+    //     if ((in.pos.x < -in.pos.w ||
+    //          in.pos.x > in.pos.w ||
+    //          in.pos.y < -in.pos.w ||
+    //          in.pos.y > in.pos.w ||
+    //          in.pos.z < -in.pos.w ||
+    //          in.pos.z > in.pos.w))
+    //     {
+    //         return false;
+    //     }
+    //     else
+    //     {
+    //         return true;
+    //     }
+    // }
 
 
 };
