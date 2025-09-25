@@ -39,7 +39,7 @@ enum class DrawType : uint8_t
 class VertexFunction
 {
 public:
-    virtual auto operator()(const ffr::math::vec4& in) -> ffr::math::vec4 = 0;
+    virtual auto operator()(ffr::math::vec3& in) -> void = 0;
 };
 
 
@@ -119,7 +119,8 @@ public:
         line(x0,y0,x0,y1,color);
     }
 
-    void triangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t color) {
+    virtual auto triangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t color) -> void
+    {
         // This implementation uses only 16-bit integer math (Bresenham-style)
         // and avoids all C++ standard library functions.
         int16_t v_top_x = x0, v_top_y = y0;
@@ -280,18 +281,61 @@ private:
 
     auto vertex_pipeline() -> void
     {
+        run_vertex_function();
 
     }
 
-    // std::vector<Vertex> run_vertex_function(std::vector<Vertex>& in)
-    // {
-    //     std::vector<Vertex> out;
-    //     for (auto& i : in)
-    //     {
-    //         out.push_back(  Vertex{ vertex_function[0](i.pos) , i.col }  );
-    //     }
-    //     return out;
-    // }
+    auto run_vertex_function() -> void
+    {
+        for(auto& v : vert_buf_)
+        {
+            vertex_function_[0](v);
+        }
+    }
+
+
+    int clipTriangleAgainstPlane(math::vec4 v0, math::vec4 v1, math::vec4 v2
+        math::vec4 const& planeN,
+        float planeD,
+        math::vec4 outVerts[MAX_VERTS])
+    {
+        // Temporary buffers
+        math::vec4 input[4]  = { tri[0], tri[1], tri[2], {} };
+        math::vec4 output[4] = {};
+        int  inCount   = 3;
+        int  outCount  = 0;
+
+        // Sutherland–Hodgman: for each edge (prev->curr)
+        for (int i = 0; i < inCount; ++i)
+        {
+            int   j      = (i + inCount - 1) % inCount;  // previous index
+            math::vec4  curr   = input[i];
+            math::vec4  prev   = input[j];
+            float dCurr  = dot(planeN, curr) + planeD;
+            float dPrev  = dot(planeN, prev) + planeD;
+            bool  inCurr = dCurr >= 0.0f;
+            bool  inPrev = dPrev >= 0.0f;
+
+            // If edge crosses plane, emit intersection
+            if (inCurr != inPrev)
+            {
+                float t = dPrev / (dPrev - dCurr);
+                output[outCount++] = prev + (curr - prev) * t;
+            }
+
+            // If current vertex is inside, keep it
+            if (inCurr)
+                output[outCount++] = curr;
+        }
+
+        // Copy clipped verts back to caller
+        for (int k = 0; k < outCount; ++k)
+            outVerts[k] = output[k];
+
+        return outCount;
+    }
+
+
     // std::vector<Vertex> run_clip_function(std::vector<Vertex>& in)
     // {
     //     std::vector<Vertex> out;
