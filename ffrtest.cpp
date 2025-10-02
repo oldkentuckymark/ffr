@@ -51,12 +51,31 @@ private:
 };
 
 
+class VF : public ffr::VertexFunction
+{
+public:
+
+    ffr::math::mat4 mv, pj;
+
+    auto operator()(ffr::math::vec3& in) -> void
+    {
+
+    }
+
+};
+
+
 auto main(int argc, char *argv[]) -> int
 {
 
     SDL_Init(SDL_INIT_VIDEO);
 
     SDL_Context c;
+    c.setVertexPointer(reinterpret_cast<ffr::math::vec3*>(par));
+    c.setColorPointer(car);
+
+    VF vf;
+    c.setVertexFunction(&vf);
 
     bool running = true;
     while (running)
@@ -87,7 +106,7 @@ auto main(int argc, char *argv[]) -> int
         //const auto sintable = ffr::math::makeTable< int,30,std::sinf >;
         c.clear();
 
-        c.triangle(20,23,100,20,110,100, 0);
+        c.drawArray(ffr::DrawType::Triangles, 0, 3);
 
         c.present();
 

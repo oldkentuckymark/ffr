@@ -14,7 +14,7 @@ class fixed32   //16.16
     static constexpr float FIX_SCALEF = 65536.0f;
 
 public:
-    int32_t data;
+    int32_t data = 0;
 
     constexpr fixed32() = default;
     constexpr fixed32(fixed32 const &that) = default;
@@ -260,7 +260,7 @@ public:
 class vec4 : public vec3
 {
 public:
-    fixed32 w;
+    fixed32 w = 1.0_fx;
 
     constexpr auto operator + (vec4 const & that) const -> vec4
     {

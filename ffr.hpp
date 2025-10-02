@@ -119,7 +119,7 @@ public:
         line(x0,y0,x0,y1,color);
     }
 
-    virtual auto triangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t color) -> void
+    virtual auto triangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) -> void
     {
         // This implementation uses only 16-bit integer math (Bresenham-style)
         // and avoids all C++ standard library functions.
@@ -230,6 +230,8 @@ public:
     {
         vertex_pointer_ = vp;
     }
+
+    //1 uint16_t per primitve
     auto setColorPointer(uint16_t* cp)-> void
     {
         color_pointer_ = cp;
@@ -246,17 +248,47 @@ public:
         if((!vertex_pointer_) || (!color_pointer_)) { return; }
 
         //copy verts and cols into bufs
-        vert_buf_current_size_ = 0;
-        color_buf_current_size_ = 0;
+        pre_clip_vert_buf_current_size_ = 0;
+        pre_clip_color_buf_current_size_ = 0;
         current_draw_type_ = dt;
 
         for(uint8_t i = first; i < first + count; ++i)
         {
-            vert_buf_[i-first] = *(vertex_pointer_ + i);
-            vert_buf_current_size_ = vert_buf_current_size_ + 1;
+            pre_clip_vert_buf_[pre_clip_vert_buf_current_size_] = vertex_pointer_[i];
+            pre_clip_vert_buf_current_size_++;
 
-            color_buf_[i-first] = *(color_pointer_ + i);
-            color_buf_current_size_ = color_buf_current_size_ + 1;
+            // if( ((i-first) % static_cast<int>(current_draw_type_)) == 0)
+            // {
+            //     pre_clip_color_buf_[pre_clip_color_buf_current_size_] = color_pointer_[i];
+            //     pre_clip_color_buf_current_size_++;
+            // }
+        }
+
+        if(current_draw_type_ == DrawType::Points)
+        {
+            for(uint8_t i = first; i < (first + count); ++i)
+            {
+                pre_clip_color_buf_[pre_clip_color_buf_current_size_] = color_pointer_[i];
+                pre_clip_color_buf_current_size_ ++;
+            }
+        }
+        if(current_draw_type_ == DrawType::Lines)
+        {
+            for(uint8_t i = first; i < (first + count) / 2; ++i)
+            {
+                pre_clip_color_buf_[pre_clip_color_buf_current_size_] = color_pointer_[i];
+                pre_clip_color_buf_current_size_ ++;
+            }
+
+        }
+        if(current_draw_type_ == DrawType::Triangles)
+        {
+            for(uint8_t i = first; i < (first + count) / 3; ++i)
+            {
+                pre_clip_color_buf_[pre_clip_color_buf_current_size_] = color_pointer_[i];
+                pre_clip_color_buf_current_size_ ++;
+            }
+
         }
 
         vertex_pipeline();
@@ -272,181 +304,214 @@ private:
     math::vec3* vertex_pointer_ = nullptr;
     uint16_t* color_pointer_ = nullptr;
 
-    std::array<math::vec3, MAX_VERTS> vert_buf_;
-    uint8_t vert_buf_current_size_ = 0;
-    std::array<uint16_t, (MAX_VERTS/3) + (MAX_VERTS%3)> color_buf_;
-    uint8_t color_buf_current_size_ = 0;
+    std::array<math::vec3, MAX_VERTS> pre_clip_vert_buf_;
+    uint8_t pre_clip_vert_buf_current_size_ = 0;
+    std::array<uint16_t, MAX_VERTS > pre_clip_color_buf_;
+    uint8_t pre_clip_color_buf_current_size_ = 0;
+
+    std::array<math::vec3, MAX_VERTS> post_clip_vert_buf_;
+    uint8_t post_clip_vert_buf_current_size_ = 0;
+    std::array<uint16_t, MAX_VERTS> post_clip_color_buf_;
+    uint8_t post_clip_color_buf_current_size_ = 0;
 
     VertexFunction* vertex_function_ = nullptr;
 
     auto vertex_pipeline() -> void
     {
-        run_vertex_function();
 
-    }
+        std::array<math::vec4, 27> post_clip_verts;
+        uint16_t post_clip_verts_size = 0;
 
-    auto run_vertex_function() -> void
-    {
-        for(auto& v : vert_buf_)
+        //run vertex shader
+        for(auto& v : pre_clip_vert_buf_)
         {
             vertex_function_[0](v);
         }
-    }
 
-
-    int clipTriangleAgainstPlane(math::vec4 v0, math::vec4 v1, math::vec4 v2
-        math::vec4 const& planeN,
-        float planeD,
-        math::vec4 outVerts[MAX_VERTS])
-    {
-        // Temporary buffers
-        math::vec4 input[4]  = { tri[0], tri[1], tri[2], {} };
-        math::vec4 output[4] = {};
-        int  inCount   = 3;
-        int  outCount  = 0;
-
-        // Sutherland–Hodgman: for each edge (prev->curr)
-        for (int i = 0; i < inCount; ++i)
+        //run clipping
+        if(current_draw_type_ == DrawType::Points)
         {
-            int   j      = (i + inCount - 1) % inCount;  // previous index
-            math::vec4  curr   = input[i];
-            math::vec4  prev   = input[j];
-            float dCurr  = dot(planeN, curr) + planeD;
-            float dPrev  = dot(planeN, prev) + planeD;
-            bool  inCurr = dCurr >= 0.0f;
-            bool  inPrev = dPrev >= 0.0f;
-
-            // If edge crosses plane, emit intersection
-            if (inCurr != inPrev)
+            for(uint16_t i = 0; i < pre_clip_vert_buf_current_size_; ++i)
             {
-                float t = dPrev / (dPrev - dCurr);
-                output[outCount++] = prev + (curr - prev) * t;
-            }
+                if(clip_point(pre_clip_vert_buf_[i]))
+                {
+                    post_clip_vert_buf_[post_clip_vert_buf_current_size_] = pre_clip_vert_buf_[i];
+                    post_clip_vert_buf_current_size_++;
 
-            // If current vertex is inside, keep it
-            if (inCurr)
-                output[outCount++] = curr;
+                    post_clip_color_buf_[post_clip_color_buf_current_size_] = pre_clip_color_buf_[i];
+                    post_clip_color_buf_current_size_++;
+                }
+            }
+        }
+        else if(current_draw_type_ == DrawType::Lines)
+        {
+
+        }
+        else    //DrawType::Triangles
+        {
+            for(uint16_t i=0; i < pre_clip_vert_buf_current_size_ - 2; i = i + 3)
+            {
+
+
+                post_clip_verts_size = clip_triangle(pre_clip_vert_buf_[i+0],pre_clip_vert_buf_[i+1],pre_clip_vert_buf_[i+2],post_clip_verts);
+
+
+                for(uint16_t vertIndex = 0; vertIndex < post_clip_verts_size; ++vertIndex)
+                {
+                    //do w divide to yield ndc coords
+                    post_clip_verts[vertIndex].x = post_clip_verts[vertIndex].x / post_clip_verts[vertIndex].w;
+                    post_clip_verts[vertIndex].y = post_clip_verts[vertIndex].y / post_clip_verts[vertIndex].w;
+                    post_clip_verts[vertIndex].z = post_clip_verts[vertIndex].z / post_clip_verts[vertIndex].w;
+
+                    ///////fix ARRAY index MATH
+                    post_clip_vert_buf_[post_clip_vert_buf_current_size_ + vertIndex] = post_clip_verts[vertIndex];
+
+                }
+                post_clip_vert_buf_current_size_ += post_clip_verts_size;
+
+
+                for(uint16_t i = 0; i < post_clip_verts_size / 3; ++i)
+                {
+                    post_clip_color_buf_[post_clip_color_buf_current_size_ + i] = pre_clip_color_buf_[pre_clip_color_buf_current_size_ + i];
+                }
+                post_clip_color_buf_current_size_ += post_clip_verts_size / 3;
+            }
         }
 
-        // Copy clipped verts back to caller
-        for (int k = 0; k < outCount; ++k)
-            outVerts[k] = output[k];
+        //run ndc to window transform
+        for(auto& v : post_clip_vert_buf_)
+        {
+            v.x = ((math::fixed32(view_width_) * 0.5_fx) * v.x) + (math::fixed32(view_width_) * 0.5_fx);
+            v.y = -((math::fixed32(view_height_) * 0.5_fx) * v.y) + (math::fixed32(view_width_) * 0.5_fx);
+            v.z = (0.5_fx * v.z) + (0.5_fx);
+        }
 
-        return outCount;
+
+        //fnally, draw
+        if(current_draw_type_ == DrawType::Triangles)
+        {
+            for(uint16_t i = 0, c = 0; i < post_clip_vert_buf_current_size_ - 2; i = i + 3, c = c + 1)
+            {
+                triangle(static_cast<int16_t>(post_clip_vert_buf_[i].x), static_cast<int16_t>(post_clip_vert_buf_[i].y),
+                        static_cast<int16_t>(post_clip_vert_buf_[i+1].x), static_cast<int16_t>(post_clip_vert_buf_[i+1].y),
+                        static_cast<int16_t>(post_clip_vert_buf_[i+2].x), static_cast<int16_t>(post_clip_vert_buf_[i+2].y),
+                         UINT16_MAX);
+
+            }
+        }
+
+
+
+
+
+    }
+
+    //true if inside, false if out of bounds
+    auto clip_point(math::vec3 const & in) -> bool
+    {
+        if ((in.x <= -1.0_fx ||
+             in.x >= 1.0_fx ||
+             in.y <= -1.0_fx ||
+             in.y >= 1.0_fx ||
+             in.z <= -1.0_fx ||
+             in.z >= 1.0_fx))
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
 
 
-    // std::vector<Vertex> run_clip_function(std::vector<Vertex>& in)
-    // {
-    //     std::vector<Vertex> out;
+    // Clip a triangle against all 6 homogeneous clip planes and triangulate result
+    // Returns number of output vertices (always a multiple of 3)
+    // Output contains triangulated vertices (every 3 vertices form a triangle)
+    auto clip_triangle(math::vec3 v0, math::vec3 v1, math::vec3 v2, std::array<math::vec4, 27>& output) -> int
+    {
+        // Define the 6 clipping planes in homogeneous space
+        // For a vertex v = (x, y, z, w), the planes are:
+        // -w <= x <= w  =>  x + w >= 0 and -x + w >= 0
+        // -w <= y <= w  =>  y + w >= 0 and -y + w >= 0
+        // -w <= z <= w  =>  z + w >= 0 and -z + w >= 0
 
-    //     for(uint8_t i = 0; i < in.size() - 1; i = i + 2)
-    //     {
-    //         Vertex pi1, pi2, po1, po2;
-    //         pi1 = in[i];
-    //         pi2 = in[i+1];
-    //         bool pi1in = clip_point(pi1);
-    //         bool pi2in = clip_point(pi2);
-    //         if(pi1in && pi2in)
-    //         {
-    //             out.push_back(pi1);
-    //             out.push_back(pi2);
-    //         }
-    //         else if(pi1in || pi2in)
-    //         {
-    //             clip_line_component(pi1,pi2, 0, 1.0_fx, po1, po2);
-    //             clip_line_component(po1,po2, 0, -1.0_fx, pi1, pi2);
-    //             clip_line_component(pi1,pi2, 1, 1.0_fx, po1, po2);
-    //             clip_line_component(po1,po2, 1, -1.0_fx, pi1, pi2);
-    //             clip_line_component(pi1,pi2, 2, 1.0_fx, po1, po2);
-    //             clip_line_component(po1,po2, 2, -1.0_fx, pi1, pi2);
+        // Clip order: near, left, right, bottom, top, far
+        const math::vec4 planes[6] = {
+            math::vec4{ 0.0_fx,  0.0_fx,  1.0_fx,  1.0_fx},  // z + w >= 0  (near)
+            math::vec4{ 1.0_fx,  0.0_fx,  0.0_fx,  1.0_fx},  // x + w >= 0  (left)
+            math::vec4{-1.0_fx,  0.0_fx,  0.0_fx,  1.0_fx},  // -x + w >= 0 (right)
+            math::vec4{ 0.0_fx,  1.0_fx,  0.0_fx,  1.0_fx},  // y + w >= 0  (bottom)
+            math::vec4{ 0.0_fx, -1.0_fx,  0.0_fx,  1.0_fx},  // -y + w >= 0 (top)
+            math::vec4{ 0.0_fx,  0.0_fx, -1.0_fx,  1.0_fx}   // -z + w >= 0 (far)
+        };
 
-    //             out.push_back( pi1 );
-    //             out.push_back( pi2 );
-    //         }
+        // Working buffers for polygon clipping (ping-pong between them)
+        math::vec4 buffer1[9];  // Max vertices after clipping a triangle is 9
+        math::vec4 buffer2[9];
 
+        // Initialize with input triangle
+        buffer1[0].x = v0.x; buffer1[0].y = v0.y; buffer1[0].z = v0.z;
 
-    //     }
+        buffer1[1].x = v1.x; buffer1[1].y = v1.y; buffer1[1].z = v1.z;;
 
-    //     return  out;
-    // }
-    // std::vector<Vertex> run_ndc_function(std::vector<Vertex>& in)
-    // {
-    //     std::vector<Vertex> out;
-    //     for (auto& i : in)
-    //     {
-    //         out.push_back( Vertex{ { i.pos / i.pos.w }, i.col });
-    //     }
-    //     return out;
-    // }
-    // std::vector<Vertex> run_windowtransform_function(std::vector<Vertex>& in)
-    // {
-    //     std::vector<Vertex> out;
-    //     for (auto& i : in)
-    //     {
-    //         out.push_back
-    //             (
-    //                 Vertex
-    //                 {
-    //                     {
-    //                         ((math::fixed32(xres) / 2.0_fx) * i.pos.x) + (static_cast<math::fixed32>(xres) / 2.0_fx),
-    //                         -((static_cast<math::fixed32>(yres) / 2.0_fx) * i.pos.y) + (static_cast<math::fixed32>(yres) / 2.0_fx),
-    //                         ((1.0_fx / 2.0_fx) * i.pos.z) + (1.0_fx / 2.0_fx),
-    //                         i.pos.w
-    //                     },
-    //                     i.col
-    //                 }
-    //                 );
-    //     }
-    //     return out;
-    // }
+        buffer1[2].x = v2.x; buffer1[2].y = v2.y; buffer1[2].z = v2.z;;
 
-    // void run_draw_function(std::vector<Vertex>& in)
-    // {
-    //     if(in.empty())
-    //     {
-    //         return;
-    //     }
+        int vertCount = 3;
 
-    //     for(uint32_t i = 0; i < in.size() - 1; i = i + 2)
-    //     {
+        math::vec4* currentBuffer = buffer1;
+        math::vec4* nextBuffer = buffer2;
 
+        // Clip against each plane sequentially
+        for (int planeIdx = 0; planeIdx < 6; planeIdx++) {
+            const math::vec4& plane = planes[planeIdx];
+            int outCount = 0;
 
-    //         //laserOff();
-    //         //laserMove(in[i].pos.x, in[i].pos.y);
-    //         //laserOn();
-    //         //laserColor(in[i].col.r, in[i].col.g, in[i].col.b);
+            // Clip current polygon against this plane
+            for (int i = 0; i < vertCount; i++) {
+                const math::vec4& curr = currentBuffer[i];
+                const math::vec4& next = currentBuffer[(i + 1) % vertCount];
 
-    //         line(static_cast<int16_t>(in[i].pos.x),
-    //              static_cast<int16_t>(in[i].pos.y),
-    //              static_cast<int16_t>(in[i+1].pos.x),
-    //              static_cast<int16_t>(in[i+1].pos.y),
-    //              in[i].col);
+                math::fixed32 currDist = (plane * curr);
+                math::fixed32 nextDist = (plane * next);
 
+                bool currInside = currDist >= 0.0_fx;
+                bool nextInside = nextDist >= 0.0_fx;
 
-    //         //laserMove(in[i+1].pos.x, in[i+1].pos.y);
-    //         //laserColor(in[i+1].col.r, in[i+1].col.g, in[i].col.b);
-    //     }
-    //     //laserOff();
-    // }
+                if (currInside) {
+                    nextBuffer[outCount++] = curr;
+                }
 
-    // // returns true if point is inside volume
-    // bool clip_point(const Vertex& in)
-    // {
-    //     if ((in.pos.x < -in.pos.w ||
-    //          in.pos.x > in.pos.w ||
-    //          in.pos.y < -in.pos.w ||
-    //          in.pos.y > in.pos.w ||
-    //          in.pos.z < -in.pos.w ||
-    //          in.pos.z > in.pos.w))
-    //     {
-    //         return false;
-    //     }
-    //     else
-    //     {
-    //         return true;
-    //     }
-    // }
+                // If edge crosses the plane, compute intersection
+                if (currInside != nextInside) {
+                    math::fixed32 t = currDist / (currDist - nextDist);
+                    nextBuffer[outCount++] = curr + ((next - curr)*t);
+                }
+            }
+
+            vertCount = outCount;
+
+            if (vertCount == 0) {
+                return 0;  // Triangle completely clipped
+            }
+
+            // Swap buffers
+            math::vec4* temp = currentBuffer;
+            currentBuffer = nextBuffer;
+            nextBuffer = temp;
+        }
+
+        // Triangulate the resulting polygon using fan triangulation
+        // Polygon vertices are in currentBuffer[0..vertCount-1]
+        int outIndex = 0;
+        for (int i = 1; i < vertCount - 1; i++) {
+            output[outIndex++] = currentBuffer[0];
+            output[outIndex++] = currentBuffer[i];
+            output[outIndex++] = currentBuffer[i + 1];
+        }
+
+        return outIndex;
+    }
 
 
 };
