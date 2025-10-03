@@ -377,9 +377,13 @@ private:
 
                 for(uint16_t i = 0; i < post_clip_verts_size / 3; ++i)
                 {
-                    post_clip_color_buf_[post_clip_color_buf_current_size_ + i] = pre_clip_color_buf_[pre_clip_color_buf_current_size_ + i];
+                    post_clip_color_buf_[post_clip_color_buf_current_size_ + i] = pre_clip_color_buf_[pre_clip_color_buf_current_size_ + i-1];
+                    auto lll = pre_clip_color_buf_current_size_ + i-1;
+
+                    auto h = 0;
                 }
                 post_clip_color_buf_current_size_ += post_clip_verts_size / 3;
+                //pre_clip_vert_buf_current_size_ += 1;
             }
         }
 
@@ -398,12 +402,12 @@ private:
         //fnally, draw
         if(current_draw_type_ == DrawType::Triangles)
         {
-            for(uint16_t i = 0, c = 0; i < post_clip_vert_buf_current_size_ - 2; i = i + 3, c = c + 1)
+            for(uint16_t i = 0; i < post_clip_vert_buf_current_size_ - 2; i = i + 3)
             {
                 triangle(static_cast<int16_t>(post_clip_vert_buf_[i].x), static_cast<int16_t>(post_clip_vert_buf_[i].y),
                         static_cast<int16_t>(post_clip_vert_buf_[i+1].x), static_cast<int16_t>(post_clip_vert_buf_[i+1].y),
                         static_cast<int16_t>(post_clip_vert_buf_[i+2].x), static_cast<int16_t>(post_clip_vert_buf_[i+2].y),
-                         UINT16_MAX);
+                         post_clip_color_buf_[i]);
 
             }
         }

@@ -2,14 +2,14 @@
 #include <SDL2/SDL.h>
 
 
-ffr::math::fixed32 par[9] =
+ffr::math::fixed32 par[18] =
 {
-    0.25_fx,0.25_fx, -0.2_fx, 0.25_fx,0.5_fx,-0.2_fx, 0.5_fx,0.5_fx,-0.2_fx
+    0.25_fx,0.25_fx, -0.2_fx, 0.25_fx,0.5_fx,-0.2_fx, 0.5_fx,0.5_fx,-0.2_fx,   2.25_fx,2.25_fx, -0.2_fx, 2.25_fx,2.5_fx,-0.2_fx, 2.5_fx,2.5_fx,-0.2_fx
 };
 
-uint16_t car[3] =
+uint16_t car[2] =
 {
-    UINT16_MAX,UINT16_MAX,UINT16_MAX
+    30000,UINT16_MAX
 };
 
 
@@ -41,7 +41,8 @@ public:
 
     void plot(uint16_t x, uint16_t y, uint16_t c) override
     {
-        SDL_SetRenderDrawColor(ren,255,255,255,255);
+        auto cc = ffr::Convert555to888(c);
+        SDL_SetRenderDrawColor(ren,cc[0],cc[1],cc[2],255);
         SDL_RenderDrawPoint(ren,x,y);
     }
 
@@ -62,7 +63,7 @@ public:
 
         in = pj * mv * in;
 
-        //in.w = in.w * 2.0_fx;
+        //in.w = in.z * 2.0_fx;
     }
 
 };
@@ -115,7 +116,7 @@ auto main(int argc, char *argv[]) -> int
         //const auto sintable = ffr::math::makeTable< int,30,std::sinf >;
         c.clear();
 
-        c.drawArray(ffr::DrawType::Triangles, 0, 3);
+        c.drawArray(ffr::DrawType::Triangles, 0, 6);
 
         //c.triangle(20,20,50,25,30,80,UINT16_MAX);
 
