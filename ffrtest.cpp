@@ -2,14 +2,14 @@
 #include <SDL2/SDL.h>
 
 
-ffr::math::fixed32 par[6] =
+ffr::math::fixed32 par[9] =
 {
-    0.25_fx,0.25_fx, 0.25_fx,0.5_fx, 0.5_fx,0.5_fx
+    0.25_fx,0.25_fx, -0.2_fx, 0.25_fx,0.5_fx,-0.2_fx, 0.5_fx,0.5_fx,-0.2_fx
 };
 
-uint16_t car[6] =
+uint16_t car[3] =
 {
-    UINT16_MAX,UINT16_MAX,UINT16_MAX,UINT16_MAX,UINT16_MAX,UINT16_MAX
+    UINT16_MAX,UINT16_MAX,UINT16_MAX
 };
 
 
@@ -57,9 +57,12 @@ public:
 
     ffr::math::mat4 mv, pj;
 
-    auto operator()(ffr::math::vec3& in) -> void
+    auto operator()(ffr::math::vec4& in) -> void override
     {
 
+        in = pj * mv * in;
+
+        //in.w = in.w * 2.0_fx;
     }
 
 };
@@ -71,11 +74,17 @@ auto main(int argc, char *argv[]) -> int
     SDL_Init(SDL_INIT_VIDEO);
 
     SDL_Context c;
+    c.setViewPort(240,160);
     c.setVertexPointer(reinterpret_cast<ffr::math::vec3*>(par));
     c.setColorPointer(car);
 
     VF vf;
+    ffr::math::fixed32 g = 0.0_fx;
+
+
+
     c.setVertexFunction(&vf);
+
 
     bool running = true;
     while (running)
@@ -108,8 +117,14 @@ auto main(int argc, char *argv[]) -> int
 
         c.drawArray(ffr::DrawType::Triangles, 0, 3);
 
+        //c.triangle(20,20,50,25,30,80,UINT16_MAX);
+
         c.present();
 
+
+        vf.mv = ffr::math::mat4::translation(ffr::math::vec3{0.0_fx,0.0_fx,g});
+        g = g - 0.001_fx;
+        vf.pj = ffr::math::mat4::perspective(90.0_fx,0.6666_fx,1.0_fx, 1000.0_fx);
 
 
     }

@@ -39,7 +39,7 @@ enum class DrawType : uint8_t
 class VertexFunction
 {
 public:
-    virtual auto operator()(ffr::math::vec3& in) -> void = 0;
+    virtual auto operator()(ffr::math::vec4& in) -> void = 0;
 };
 
 
@@ -59,7 +59,7 @@ public:
         vertex_function_ = vf;
     }
 
-    virtual auto line(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color) -> void
+    virtual auto line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color) -> void
     {
         bool const steep = std::abs(y1 - y0) > std::abs(x1 - x0);
 
@@ -110,17 +110,20 @@ public:
             }
         }
     }
-    virtual auto lineHorizontal(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t color) -> void
+    virtual auto lineHorizontal(int16_t x0, int16_t y0, int16_t x1, uint16_t color) -> void
     {
         line(x0,y0,x1,y0,color);
     }
-    virtual auto lineVertical(uint16_t x0, uint16_t y0, uint16_t y1, uint16_t color) -> void
+    virtual auto lineVertical(int16_t x0, int16_t y0, int16_t y1, uint16_t color) -> void
     {
         line(x0,y0,x0,y1,color);
     }
 
     virtual auto triangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) -> void
     {
+
+        //std::cout << x0 << ", " << x1 << ", " << y0 << ", " << y1 << ", " << x2 << ", " << y2 << "\n";
+
         // This implementation uses only 16-bit integer math (Bresenham-style)
         // and avoids all C++ standard library functions.
         int16_t v_top_x = x0, v_top_y = y0;
@@ -236,13 +239,13 @@ public:
     {
         color_pointer_ = cp;
     }
-    auto setViewPort(uint16_t w, uint16_t h)
+    auto setViewPort(int16_t w, int16_t h)
     {
         view_width_ = w;
         view_height_ = h;
     }
 
-    auto drawArray(DrawType dt, uint8_t first, uint8_t count) -> void
+    auto drawArray(DrawType dt, uint16_t first, uint16_t count) -> void
     {
 
         if((!vertex_pointer_) || (!color_pointer_)) { return; }
@@ -250,11 +253,14 @@ public:
         //copy verts and cols into bufs
         pre_clip_vert_buf_current_size_ = 0;
         pre_clip_color_buf_current_size_ = 0;
+        post_clip_vert_buf_current_size_ = 0;
+        post_clip_color_buf_current_size_ = 0;
         current_draw_type_ = dt;
 
-        for(uint8_t i = first; i < first + count; ++i)
+        for(uint16_t i = first; i < first + count; ++i)
         {
-            pre_clip_vert_buf_[pre_clip_vert_buf_current_size_] = vertex_pointer_[i];
+            //math::vec4 const v{vertex_pointer_[i].x, vertex_pointer_[i].y, vertex_pointer_[i].z, 1.0_fx};
+            pre_clip_vert_buf_[pre_clip_vert_buf_current_size_] = {vertex_pointer_[i].x, vertex_pointer_[i].y, vertex_pointer_[i].z, 1.0_fx};
             pre_clip_vert_buf_current_size_++;
 
             // if( ((i-first) % static_cast<int>(current_draw_type_)) == 0)
@@ -266,7 +272,7 @@ public:
 
         if(current_draw_type_ == DrawType::Points)
         {
-            for(uint8_t i = first; i < (first + count); ++i)
+            for(uint16_t i = first; i < (first + count); ++i)
             {
                 pre_clip_color_buf_[pre_clip_color_buf_current_size_] = color_pointer_[i];
                 pre_clip_color_buf_current_size_ ++;
@@ -274,7 +280,7 @@ public:
         }
         if(current_draw_type_ == DrawType::Lines)
         {
-            for(uint8_t i = first; i < (first + count) / 2; ++i)
+            for(uint16_t i = first; i < (first + count) / 2; ++i)
             {
                 pre_clip_color_buf_[pre_clip_color_buf_current_size_] = color_pointer_[i];
                 pre_clip_color_buf_current_size_ ++;
@@ -283,7 +289,7 @@ public:
         }
         if(current_draw_type_ == DrawType::Triangles)
         {
-            for(uint8_t i = first; i < (first + count) / 3; ++i)
+            for(uint16_t i = first; i < (first + count) / 3; ++i)
             {
                 pre_clip_color_buf_[pre_clip_color_buf_current_size_] = color_pointer_[i];
                 pre_clip_color_buf_current_size_ ++;
@@ -296,23 +302,23 @@ public:
     }
 
 private:
-    uint16_t view_width_ = 0;
-    uint16_t view_height_ = 0;
+    int16_t view_width_ = 0;
+    int16_t view_height_ = 0;
 
     DrawType current_draw_type_ = DrawType::Lines;
 
     math::vec3* vertex_pointer_ = nullptr;
     uint16_t* color_pointer_ = nullptr;
 
-    std::array<math::vec3, MAX_VERTS> pre_clip_vert_buf_;
-    uint8_t pre_clip_vert_buf_current_size_ = 0;
+    std::array<math::vec4, MAX_VERTS> pre_clip_vert_buf_;
+    uint16_t pre_clip_vert_buf_current_size_ = 0;
     std::array<uint16_t, MAX_VERTS > pre_clip_color_buf_;
-    uint8_t pre_clip_color_buf_current_size_ = 0;
+    uint16_t pre_clip_color_buf_current_size_ = 0;
 
-    std::array<math::vec3, MAX_VERTS> post_clip_vert_buf_;
-    uint8_t post_clip_vert_buf_current_size_ = 0;
+    std::array<math::vec4, MAX_VERTS> post_clip_vert_buf_;
+    uint16_t post_clip_vert_buf_current_size_ = 0;
     std::array<uint16_t, MAX_VERTS> post_clip_color_buf_;
-    uint8_t post_clip_color_buf_current_size_ = 0;
+    uint16_t post_clip_color_buf_current_size_ = 0;
 
     VertexFunction* vertex_function_ = nullptr;
 
@@ -323,9 +329,9 @@ private:
         uint16_t post_clip_verts_size = 0;
 
         //run vertex shader
-        for(auto& v : pre_clip_vert_buf_)
+        for(uint16_t i = 0; i < pre_clip_vert_buf_current_size_; ++i)
         {
-            vertex_function_[0](v);
+            vertex_function_[0](pre_clip_vert_buf_[i]);
         }
 
         //run clipping
@@ -349,7 +355,7 @@ private:
         }
         else    //DrawType::Triangles
         {
-            for(uint16_t i=0; i < pre_clip_vert_buf_current_size_ - 2; i = i + 3)
+            for(uint16_t i = 0; i < pre_clip_vert_buf_current_size_ - 2; i = i + 3)
             {
 
 
@@ -363,7 +369,6 @@ private:
                     post_clip_verts[vertIndex].y = post_clip_verts[vertIndex].y / post_clip_verts[vertIndex].w;
                     post_clip_verts[vertIndex].z = post_clip_verts[vertIndex].z / post_clip_verts[vertIndex].w;
 
-                    ///////fix ARRAY index MATH
                     post_clip_vert_buf_[post_clip_vert_buf_current_size_ + vertIndex] = post_clip_verts[vertIndex];
 
                 }
@@ -379,11 +384,14 @@ private:
         }
 
         //run ndc to window transform
-        for(auto& v : post_clip_vert_buf_)
+        for(uint16_t  i = 0; i < post_clip_vert_buf_current_size_; ++i)
         {
-            v.x = ((math::fixed32(view_width_) * 0.5_fx) * v.x) + (math::fixed32(view_width_) * 0.5_fx);
-            v.y = -((math::fixed32(view_height_) * 0.5_fx) * v.y) + (math::fixed32(view_width_) * 0.5_fx);
-            v.z = (0.5_fx * v.z) + (0.5_fx);
+            math::fixed32 g(view_width_);
+
+
+            post_clip_vert_buf_[i].x = ((math::fixed32(view_width_) * 0.5_fx) * post_clip_vert_buf_[i].x) + (math::fixed32(view_width_) * 0.5_fx);
+            post_clip_vert_buf_[i].y = -(((math::fixed32(view_height_) * 0.5_fx) * post_clip_vert_buf_[i].y)) + (math::fixed32(view_width_) * 0.5_fx);
+            post_clip_vert_buf_[i].z = (0.5_fx * post_clip_vert_buf_[i].z) + (0.5_fx);
         }
 
 
@@ -407,7 +415,7 @@ private:
     }
 
     //true if inside, false if out of bounds
-    auto clip_point(math::vec3 const & in) -> bool
+    auto clip_point(math::vec4 const & in) -> bool
     {
         if ((in.x <= -1.0_fx ||
              in.x >= 1.0_fx ||
@@ -428,7 +436,7 @@ private:
     // Clip a triangle against all 6 homogeneous clip planes and triangulate result
     // Returns number of output vertices (always a multiple of 3)
     // Output contains triangulated vertices (every 3 vertices form a triangle)
-    auto clip_triangle(math::vec3 v0, math::vec3 v1, math::vec3 v2, std::array<math::vec4, 27>& output) -> int
+    auto clip_triangle(math::vec4 v0, math::vec4 v1, math::vec4 v2, std::array<math::vec4, 27>& output) -> int
     {
         // Define the 6 clipping planes in homogeneous space
         // For a vertex v = (x, y, z, w), the planes are:
@@ -451,11 +459,9 @@ private:
         math::vec4 buffer2[9];
 
         // Initialize with input triangle
-        buffer1[0].x = v0.x; buffer1[0].y = v0.y; buffer1[0].z = v0.z;
-
-        buffer1[1].x = v1.x; buffer1[1].y = v1.y; buffer1[1].z = v1.z;;
-
-        buffer1[2].x = v2.x; buffer1[2].y = v2.y; buffer1[2].z = v2.z;;
+        buffer1[0].x = v0.x; buffer1[0].y = v0.y; buffer1[0].z = v0.z; buffer1[0].w = v0.w;
+        buffer1[1].x = v1.x; buffer1[1].y = v1.y; buffer1[1].z = v1.z; buffer1[1].w = v1.w;
+        buffer1[2].x = v2.x; buffer1[2].y = v2.y; buffer1[2].z = v2.z; buffer1[2].w = v2.w;
 
         int vertCount = 3;
 

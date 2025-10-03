@@ -20,17 +20,12 @@ public:
     constexpr fixed32(fixed32 const &that) = default;
     constexpr auto operator = (fixed32 const &that) -> fixed32& = default;
 
-    constexpr explicit fixed32(int16_t that) : data(that << FIX_SHIFT)
+    constexpr explicit fixed32(int16_t const & that) : data(that << FIX_SHIFT)
     {
 
     }
 
-    constexpr explicit fixed32(uint16_t that) : data(that << FIX_SHIFT)
-    {
-
-    }
-
-    constexpr explicit fixed32(float const that) : data(that*FIX_SCALE)
+    constexpr explicit fixed32(float const & that) : data(that*FIX_SCALE)
     {
 
     }
@@ -54,12 +49,12 @@ public:
 
     constexpr explicit operator int32_t () const
     {
-        return data / FIX_SCALE;
+        return data >> FIX_SHIFT;
     }
 
     constexpr explicit operator int16_t () const
     {
-        return data / FIX_SCALE;
+        return data >> FIX_SHIFT;
     }
 
     constexpr explicit operator float () const
@@ -441,6 +436,21 @@ public:
 
         n.m[0][0] = f / aspect;
         n.m[1][1] = f;
+        n.m[2][2] = (zFar + zNear)/(zNear-zFar);
+        n.m[3][2] = (2.0_fx * zFar * zNear)/(zNear-zFar);
+        n.m[2][3] = -1.0_fx;
+        n.m[3][3] = 0.0_fx;
+
+
+        return n;
+    }
+
+    static constexpr auto perspective90DegSquare(fixed32 const zNear, fixed32 const zFar)
+    {
+        mat4 n;
+
+        n.m[0][0] = 1.0_fx;
+        n.m[1][1] = 1.0_fx;
         n.m[2][2] = (zFar + zNear)/(zNear-zFar);
         n.m[3][2] = (2.0_fx * zFar * zNear)/(zNear-zFar);
         n.m[2][3] = -1.0_fx;
