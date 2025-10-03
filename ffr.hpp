@@ -377,7 +377,7 @@ private:
 
                 for(uint16_t i = 0; i < post_clip_verts_size / 3; ++i)
                 {
-                    post_clip_color_buf_[post_clip_color_buf_current_size_ + i] = pre_clip_color_buf_[pre_clip_color_buf_current_size_ + i-1];
+                    post_clip_color_buf_[post_clip_color_buf_current_size_ + i] = pre_clip_color_buf_[pre_clip_color_buf_current_size_ + i];
                     auto lll = pre_clip_color_buf_current_size_ + i-1;
 
                     auto h = 0;

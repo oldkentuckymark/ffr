@@ -9,7 +9,7 @@ ffr::math::fixed32 par[18] =
 
 uint16_t car[2] =
 {
-    30000,UINT16_MAX
+    UINT16_MAX, 31744
 };
 
 
