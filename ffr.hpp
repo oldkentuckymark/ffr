@@ -11,6 +11,33 @@
 namespace ffr
 {
 
+template<class T, std::size_t MAX_SIZE>
+class Array
+{
+public:
+    constexpr auto push_back(T& t)
+    {
+        data_[size_] = t;
+        ++size_;
+    }
+
+    constexpr auto operator [] (std::size_t i) -> T&
+    {
+        return data_[i];
+    }
+
+
+    constexpr auto size() -> std::size_t
+    {
+        return size_;
+    }
+
+private:
+    std::size_t size_ = 0;
+    T data_[MAX_SIZE];
+
+};
+
 constexpr auto Convert888to555(uint8_t const r, uint8_t const g, uint8_t const b) -> uint16_t
 {
     return (((r >> 3) & 31) |
@@ -362,7 +389,7 @@ private:
 
                 post_clip_verts_size = clip_triangle(pre_clip_vert_buf_[i+0],pre_clip_vert_buf_[i+1],pre_clip_vert_buf_[i+2],post_clip_verts);
 
-                for(uint16_t ci = 9; ci < post_clip_verts_size/3; ci++)
+                for(uint16_t ci = 0; ci < post_clip_verts_size/3; ci++)
                 {
                     post_clip_color_buf_[post_clip_color_buf_current_size_ + ci] = col;
                 }
