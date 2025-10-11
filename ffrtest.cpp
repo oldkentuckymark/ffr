@@ -14,7 +14,7 @@ uint16_t car[2] =
 
 
 
-class SDL_Context : public ffr::Context<64>
+class SDL_Context : public ffr::Context<128>
 {
 public:
     SDL_Context()

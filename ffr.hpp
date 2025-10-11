@@ -70,7 +70,7 @@ public:
 };
 
 
-template<uint8_t MAX_VERTS = 128>
+template<uint8_t MAX_VERTS>
 class Context
 {
 public:
@@ -328,6 +328,67 @@ public:
 
     }
 
+    // void terrain(math::vec2 p,
+    //              math::fixed32 phi,
+    //              int height,
+    //              int horizon,
+    //              int scale_height,
+    //              int distance,
+    //              int screen_width, int screen_height,
+    //              uint8_t const * const hm,
+    //              uint16_t const * const cm)
+    // {
+    //     //# Call the render function with the camera parameters:
+    //     //# position, viewing angle, height, horizon line position,
+    //     //# scaling factor for the height, the largest distance,
+    //     //# screen width and the screen height parameter
+    //     //Render( Point(0, 0), 0, 50, 120, 120, 300, 800, 600 )
+
+    //     uint8_t ybuffer[256];
+    //     for (uint16_t i = 0; i < 256; ++i)
+    //     {
+    //         ybuffer[i] = screen_height;
+    //     }
+
+    //     //# precalculate viewing angle parameters
+    //     math::fixed32 sinphi = ffr::math::sin(phi);
+    //     math::fixed32 cosphi = ffr::math::cos(phi);
+
+    //     //# initialize visibility array. Y position for each column on screen
+
+
+    //     //# Draw from front to the back (low z coordinate to high z coordinate)
+    //     math::fixed32 dz = 1.0_fx;
+    //     math::fixed32 z = 1.0_fx;
+    //     while (z < distance)
+    //     {
+    //         //# Find line on map. This calculation corresponds to a field of view of 90°
+    //         auto pleft = math::vec2{ ((-cosphi*z - sinphi*z) + p.x, ( sinphi*z - cosphi*z) + p.y) };
+    //         auto pright = math::vec2{ (( cosphi*z - sinphi*z) + p.x, (-sinphi*z - cosphi*z) + p.y) };
+
+    //         //# segment the line
+    //         math::fixed32 dx = static_cast<math::fixed32>(static_cast<int16_t>((pright.x - pleft.x) / screen_width));
+    //         math::fixed32 dy = static_cast<math::fixed32>(static_cast<int16_t>((pright.y - pleft.y) / screen_width));
+
+    //         //# Raster line and draw a vertical line for each segment
+    //         for (math::fixed32 i=0.0_fx; i < screen_width;i = i + 1.0_fx)
+    //         {
+    //             auto height_on_screen = (height - hm[pleft.x, pleft.y]) / z * scale_height + horizon;
+    //             lineVertical(i, height_on_screen, ybuffer[i], cm[pleft.x, pleft.y]);
+    //             if (height_on_screen < ybuffer[i])
+    //             {
+    //                 ybuffer[i] = height_on_screen;
+    //             }
+    //             pleft.x = pleft.x + dx;
+    //             pleft.y = pleft.y + dy;
+    //         }
+    //         //# Go to next line and increase step size when you are far away
+    //         z = z + dz;
+    //         dz = dz + 0.2_fx;
+    //     }
+    // }
+
+
 private:
     int16_t view_width_ = 0;
     int16_t view_height_ = 0;
@@ -544,6 +605,18 @@ private:
 
 
 };
+
+
+constexpr auto createCube(math::fixed32 const xRadius,
+                          math::fixed32 const yRadius,
+                          math::fixed32 const zRadius) -> std::array<math::vec3, 12>
+{
+    std::array<math::vec3, 12> r;
+
+    r[0] = {0.0_fx,0.0_fx,0.0_fx};
+
+    return r;
+}
 
 
 }
