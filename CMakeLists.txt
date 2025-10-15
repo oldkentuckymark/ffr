@@ -12,6 +12,7 @@ add_executable(ffrtest
 	ffrtest.cpp
 	ffr.hpp
 	ffrmath.hpp
+	util.hpp
 )
 
 if(WIN32)

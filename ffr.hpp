@@ -11,33 +11,6 @@
 namespace ffr
 {
 
-template<class T, std::size_t MAX_SIZE>
-class Array
-{
-public:
-    constexpr auto push_back(T& t)
-    {
-        data_[size_] = t;
-        ++size_;
-    }
-
-    constexpr auto operator [] (std::size_t i) -> T&
-    {
-        return data_[i];
-    }
-
-
-    constexpr auto size() -> std::size_t
-    {
-        return size_;
-    }
-
-private:
-    std::size_t size_ = 0;
-    T data_[MAX_SIZE];
-
-};
-
 constexpr auto Convert888to555(uint8_t const r, uint8_t const g, uint8_t const b) -> uint16_t
 {
     return (((r >> 3) & 31) |
@@ -256,9 +229,11 @@ public:
 
     }
 
-    auto setVertexPointer(math::vec3* vp) -> void
+    auto setVertexPointer(uint8_t size, void* vp) -> void
     {
         vertex_pointer_ = vp;
+        current_vertex_size_ = size;
+
     }
 
     //1 uint16_t per primitve
@@ -284,18 +259,35 @@ public:
         post_clip_color_buf_current_size_ = 0;
         current_draw_type_ = dt;
 
-        for(uint16_t i = first; i < first + count; ++i)
+        if(current_vertex_size_ == 2)
         {
-            //math::vec4 const v{vertex_pointer_[i].x, vertex_pointer_[i].y, vertex_pointer_[i].z, 1.0_fx};
-            pre_clip_vert_buf_[pre_clip_vert_buf_current_size_] = {vertex_pointer_[i].x, vertex_pointer_[i].y, vertex_pointer_[i].z, 1.0_fx};
-            pre_clip_vert_buf_current_size_++;
+            for(uint16_t i = first; i < first + count; ++i)
+            {
 
-            // if( ((i-first) % static_cast<int>(current_draw_type_)) == 0)
-            // {
-            //     pre_clip_color_buf_[pre_clip_color_buf_current_size_] = color_pointer_[i];
-            //     pre_clip_color_buf_current_size_++;
-            // }
+                pre_clip_vert_buf_[pre_clip_vert_buf_current_size_] = {reinterpret_cast<math::vec2*>(vertex_pointer_)[i].x,
+                                                                       reinterpret_cast<math::vec2*>(vertex_pointer_)[i].y,
+                                                                       0.0_fx, 1.0_fx};
+                pre_clip_vert_buf_current_size_++;
+
+            }
+
         }
+        if(current_vertex_size_ == 3)
+        {
+            for(uint16_t i = first; i < first + count; ++i)
+            {
+
+                pre_clip_vert_buf_[pre_clip_vert_buf_current_size_] = {reinterpret_cast<math::vec3*>(vertex_pointer_)[i].x,
+                                                                       reinterpret_cast<math::vec3*>(vertex_pointer_)[i].y,
+                                                                       reinterpret_cast<math::vec3*>(vertex_pointer_)[i].z,
+                                                                       1.0_fx};
+                pre_clip_vert_buf_current_size_++;
+
+            }
+
+        }
+
+
 
         if(current_draw_type_ == DrawType::Points)
         {
@@ -328,74 +320,75 @@ public:
 
     }
 
-    // void terrain(math::vec2 p,
-    //              math::fixed32 phi,
-    //              int height,
-    //              int horizon,
-    //              int scale_height,
-    //              int distance,
-    //              int screen_width, int screen_height,
-    //              uint8_t const * const hm,
-    //              uint16_t const * const cm)
-    // {
-    //     //# Call the render function with the camera parameters:
-    //     //# position, viewing angle, height, horizon line position,
-    //     //# scaling factor for the height, the largest distance,
-    //     //# screen width and the screen height parameter
-    //     //Render( Point(0, 0), 0, 50, 120, 120, 300, 800, 600 )
+    void terrain(math::vec2 p,
+                 math::fixed32 phi,
+                 int height,
+                 int horizon,
+                 int scale_height,
+                 int distance,
+                 int screen_width, int screen_height,
+                 uint8_t const * const hm,
+                 uint16_t const * const cm)
+    {
+        //# Call the render function with the camera parameters:
+        //# position, viewing angle, height, horizon line position,
+        //# scaling factor for the height, the largest distance,
+        //# screen width and the screen height parameter
+        //Render( Point(0, 0), 0, 50, 120, 120, 300, 800, 600 )
 
-    //     uint8_t ybuffer[256];
-    //     for (uint16_t i = 0; i < 256; ++i)
-    //     {
-    //         ybuffer[i] = screen_height;
-    //     }
+        uint8_t ybuffer[256];
+        for (uint16_t i = 0; i < 256; ++i)
+        {
+            ybuffer[i] = screen_height;
+        }
 
-    //     //# precalculate viewing angle parameters
-    //     math::fixed32 sinphi = ffr::math::sin(phi);
-    //     math::fixed32 cosphi = ffr::math::cos(phi);
+        //# precalculate viewing angle parameters
+        math::fixed32 sinphi = ffr::math::sin(phi);
+        math::fixed32 cosphi = ffr::math::cos(phi);
 
-    //     //# initialize visibility array. Y position for each column on screen
+        //# initialize visibility array. Y position for each column on screen
 
 
-    //     //# Draw from front to the back (low z coordinate to high z coordinate)
-    //     math::fixed32 dz = 1.0_fx;
-    //     math::fixed32 z = 1.0_fx;
-    //     while (z < distance)
-    //     {
-    //         //# Find line on map. This calculation corresponds to a field of view of 90°
-    //         auto pleft = math::vec2{ ((-cosphi*z - sinphi*z) + p.x, ( sinphi*z - cosphi*z) + p.y) };
-    //         auto pright = math::vec2{ (( cosphi*z - sinphi*z) + p.x, (-sinphi*z - cosphi*z) + p.y) };
+        //# Draw from front to the back (low z coordinate to high z coordinate)
+        math::fixed32 dz = 1.0_fx;
+        math::fixed32 z = 1.0_fx;
+        while (z < distance)
+        {
+            //# Find line on map. This calculation corresponds to a field of view of 90°
+            auto pleft = math::vec2{ ((-cosphi*z - sinphi*z) + p.x, ( sinphi*z - cosphi*z) + p.y) };
+            auto pright = math::vec2{ (( cosphi*z - sinphi*z) + p.x, (-sinphi*z - cosphi*z) + p.y) };
 
-    //         //# segment the line
-    //         math::fixed32 dx = static_cast<math::fixed32>(static_cast<int16_t>((pright.x - pleft.x) / screen_width));
-    //         math::fixed32 dy = static_cast<math::fixed32>(static_cast<int16_t>((pright.y - pleft.y) / screen_width));
+            //# segment the line
+            math::fixed32 dx = static_cast<math::fixed32>(static_cast<int16_t>((pright.x - pleft.x) / screen_width));
+            math::fixed32 dy = static_cast<math::fixed32>(static_cast<int16_t>((pright.y - pleft.y) / screen_width));
 
-    //         //# Raster line and draw a vertical line for each segment
-    //         for (math::fixed32 i=0.0_fx; i < screen_width;i = i + 1.0_fx)
-    //         {
-    //             auto height_on_screen = (height - hm[pleft.x, pleft.y]) / z * scale_height + horizon;
-    //             lineVertical(i, height_on_screen, ybuffer[i], cm[pleft.x, pleft.y]);
-    //             if (height_on_screen < ybuffer[i])
-    //             {
-    //                 ybuffer[i] = height_on_screen;
-    //             }
-    //             pleft.x = pleft.x + dx;
-    //             pleft.y = pleft.y + dy;
-    //         }
-    //         //# Go to next line and increase step size when you are far away
-    //         z = z + dz;
-    //         dz = dz + 0.2_fx;
-    //     }
-    // }
+            //# Raster line and draw a vertical line for each segment
+            for (math::fixed32 i=0.0_fx; i < screen_width;i = i + 1.0_fx)
+            {
+                auto height_on_screen = (height - hm[pleft.x, pleft.y]) / z * scale_height + horizon;
+                lineVertical(i, height_on_screen, ybuffer[i], cm[pleft.x, pleft.y]);
+                if (height_on_screen < ybuffer[i])
+                {
+                    ybuffer[i] = height_on_screen;
+                }
+                pleft.x = pleft.x + dx;
+                pleft.y = pleft.y + dy;
+            }
+            //# Go to next line and increase step size when you are far away
+            z = z + dz;
+            dz = dz + 0.2_fx;
+        }
+    }
 
 
 private:
     int16_t view_width_ = 0;
     int16_t view_height_ = 0;
 
-    DrawType current_draw_type_ = DrawType::Lines;
+    DrawType current_draw_type_ = DrawType::Points;
+    uint8_t current_vertex_size_ = 0;
 
-    math::vec3* vertex_pointer_ = nullptr;
+    void* vertex_pointer_ = nullptr;
     uint16_t* color_pointer_ = nullptr;
 
     std::array<math::vec4, MAX_VERTS> pre_clip_vert_buf_;
@@ -422,7 +415,6 @@ private:
             vertex_function_[0](pre_clip_vert_buf_[i]);
         }
 
-        //run clipping
         if(current_draw_type_ == DrawType::Points)
         {
             for(uint16_t i = 0; i < pre_clip_vert_buf_current_size_; ++i)
@@ -474,7 +466,7 @@ private:
         for(uint16_t  i = 0; i < post_clip_vert_buf_current_size_; ++i)
         {
             post_clip_vert_buf_[i].x = ((math::fixed32(view_width_) * 0.5_fx) * post_clip_vert_buf_[i].x) + (math::fixed32(view_width_) * 0.5_fx);
-            post_clip_vert_buf_[i].y = -(((math::fixed32(view_height_) * 0.5_fx) * post_clip_vert_buf_[i].y)) + (math::fixed32(view_width_) * 0.5_fx);
+            post_clip_vert_buf_[i].y = -(((math::fixed32(view_height_) * 0.5_fx) * post_clip_vert_buf_[i].y)) + (math::fixed32(view_height_) * 0.5_fx);
             post_clip_vert_buf_[i].z = (0.5_fx * post_clip_vert_buf_[i].z) + (0.5_fx);
         }
 
@@ -484,10 +476,15 @@ private:
         {
             for(uint16_t l = 0; l < post_clip_vert_buf_current_size_ - 2; l = l + 3)
             {
+                if(frontFacing( {post_clip_vert_buf_[l].x, post_clip_vert_buf_[l].y},
+                                {post_clip_vert_buf_[l+1].x,post_clip_vert_buf_[l+1].y},
+                                {post_clip_vert_buf_[l+2].x, post_clip_vert_buf_[l+2].y} ))
+                {
                 triangle(static_cast<int16_t>(post_clip_vert_buf_[l].x), static_cast<int16_t>(post_clip_vert_buf_[l].y),
                         static_cast<int16_t>(post_clip_vert_buf_[l+1].x), static_cast<int16_t>(post_clip_vert_buf_[l+1].y),
                         static_cast<int16_t>(post_clip_vert_buf_[l+2].x), static_cast<int16_t>(post_clip_vert_buf_[l+2].y),
                          post_clip_color_buf_[l/3]);
+                }
 
             }
         }
@@ -603,20 +600,13 @@ private:
         return outIndex;
     }
 
+    auto frontFacing(math::vec2 v0, math::vec2 v1, math::vec2 v2) -> bool
+    {
+        return ((v1.x - v0.x) * (v2.y - v0.y) - (v2.x - v0.x) * (v1.y - v0.y)) < 0.0_fx;
+    }
 
 };
 
-
-constexpr auto createCube(math::fixed32 const xRadius,
-                          math::fixed32 const yRadius,
-                          math::fixed32 const zRadius) -> std::array<math::vec3, 12>
-{
-    std::array<math::vec3, 12> r;
-
-    r[0] = {0.0_fx,0.0_fx,0.0_fx};
-
-    return r;
-}
 
 
 }
