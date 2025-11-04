@@ -130,7 +130,10 @@ auto main(int argc, char *argv[]) -> int
         c.present();
 
 
-        vf.mv = ffr::math::mat4::translation(ffr::math::vec3{0.0_fx,0.0_fx,-10.0_fx});
+        vf.mv = ffr::math::mat4::translation(ffr::math::vec3{0.0_fx,0.0_fx,g/3.0_fx});
+        vf.mv = vf.mv * ffr::math::mat4::rotationX(g);
+        vf.mv = vf.mv * ffr::math::mat4::rotationY(g);
+        vf.mv = vf.mv * ffr::math::mat4::rotationZ(g);
         g = g - 0.001_fx;
         vf.pj = ffr::math::mat4::perspective(90.0_fx,0.6666_fx,1.0_fx, 1000.0_fx);
 

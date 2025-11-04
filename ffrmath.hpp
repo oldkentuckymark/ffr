@@ -3,9 +3,16 @@
 #include <cmath>
 #include <cstdint>
 #include <type_traits>
+#include <array>
+#include <numbers>
 
 namespace ffr::math
 {
+
+static constexpr int16_t LOOKUP_TABLE_SIZE = 128;
+
+
+
 
 class fixed32   //16.16
 {
@@ -111,6 +118,11 @@ consteval auto operator""_fx(long double f) -> math::fixed32
     return r;
 }
 
+constexpr fixed32 PI = 3.14159265_fx;
+constexpr fixed32 TAU = 6.28318530_fx;
+
+
+
 constexpr auto sqrt(fixed32 const n) -> fixed32
 {
     return static_cast<fixed32>(std::sqrtf(static_cast<float>(n)));
@@ -160,16 +172,6 @@ constexpr auto abs(fixed32 n) -> fixed32
     return (n > 0.0_fx) ? n : -n;
 }
 
-template<class T, std::size_t S, auto FUNC>
-constexpr auto makeTable() -> std::array<T, S>
-{
-    std::array<T,S> r{};
-    for(std::size_t i = 0; i < S; ++i)
-    {
-        r[i] = FUNC(i);
-    }
-    return r;
-}
 
 
 class vec2
@@ -460,7 +462,7 @@ public:
         return n;
     }
 
-    static constexpr auto translation(vec3 const v) -> mat4
+    static constexpr auto translation(vec3 const & v) -> mat4
     {
         mat4 n;
 
@@ -472,7 +474,7 @@ public:
         return n;
     }
 
-    static constexpr auto translation(vec4 const v) -> mat4
+    static constexpr auto translation(vec4 const & v) -> mat4
     {
         mat4 n;
 
@@ -483,8 +485,65 @@ public:
 
         return n;
     }
+
+    static constexpr auto rotationX(fixed32 const & radians) -> mat4
+    {
+        mat4 r;
+
+        r.m[1][1] = cos(radians);
+        r.m[1][2] = sin(radians);
+        r.m[2][1] = -sin(radians);
+        r.m[2][2] = cos(radians);
+
+        return r;
+    }
+
+    static constexpr auto rotationY(fixed32 const & radians) -> mat4
+    {
+        mat4 r;
+
+        r.m[0][0] = cos(radians);
+        r.m[0][2] = -sin(radians);
+        r.m[2][0] = sin(radians);
+        r.m[2][2] = cos(radians);
+
+        return r;
+    }
+
+    static constexpr auto rotationZ(fixed32 const & radians) -> mat4
+    {
+        mat4 r;
+
+        r.m[0][0] = cos(radians);
+        r.m[0][1] = sin(radians);
+        r.m[1][0] = -sin(radians);
+        r.m[1][1] = cos(radians);
+
+        return r;
+    }
 };
 
+
+namespace
+{
+
+    using LUT = std::array<fixed32, LOOKUP_TABLE_SIZE>;
+
+    consteval auto genST() -> LUT
+    {
+        LUT r;
+
+        for(std::size_t i = 0; i < LOOKUP_TABLE_SIZE; ++i)
+        {
+            fixed32 f;;
+            r[i] = f;
+        }
+
+        return r;
+    }
+
+    static constinit LUT SINTABLE = genST();
+}
 
 
 
@@ -493,7 +552,6 @@ auto mix(auto x, auto y, auto a) -> auto
     return x * (1.0_fx - a) + y * a;
 }
 
-constexpr fixed32 PI = 3.14159265_fx;
 
 }
 

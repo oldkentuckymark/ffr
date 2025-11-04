@@ -366,7 +366,7 @@ public:
             for (math::fixed32 i=0.0_fx; i < screen_width;i = i + 1.0_fx)
             {
                 auto height_on_screen = (height - hm[pleft.x, pleft.y]) / z * scale_height + horizon;
-                lineVertical(i, height_on_screen, ybuffer[i], cm[pleft.x, pleft.y]);
+                //lineVertical(i, height_on_screen, ybuffer[i], cm[pleft.x, pleft.y]);
                 if (height_on_screen < ybuffer[i])
                 {
                     ybuffer[i] = height_on_screen;
