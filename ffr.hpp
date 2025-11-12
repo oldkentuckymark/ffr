@@ -1,10 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <array>
 #include <cmath>
-#include <vector>
-#include <climits>
 
 #include "ffrmath.hpp"
 
@@ -19,7 +16,7 @@ constexpr auto Convert888to555(uint8_t const r, uint8_t const g, uint8_t const b
 
 }
 
-constexpr auto Convert555to888(uint16_t color) -> std::array<uint8_t, 4>
+constexpr auto Convert555to888(uint16_t color) -> ffr::util::array<uint8_t, 4>
 {
     uint8_t const red = (color & 31) << 3;
     uint8_t const green = ((color >> 5) & 31) << 3;
@@ -322,11 +319,11 @@ public:
 
     void terrain(math::vec2 p,
                  math::fixed32 phi,
-                 int height,
-                 int horizon,
-                 int scale_height,
-                 int distance,
-                 int screen_width, int screen_height,
+                 int16_t height,
+                 int16_t horizon,
+                 int16_t scale_height,
+                 int16_t distance,
+                 int16_t screen_width, int16_t screen_height,
                  uint8_t const * const hm,
                  uint16_t const * const cm)
     {
@@ -352,25 +349,26 @@ public:
         //# Draw from front to the back (low z coordinate to high z coordinate)
         math::fixed32 dz = 1.0_fx;
         math::fixed32 z = 1.0_fx;
-        while (z < distance)
+        math::fixed32 dist32 (distance);
+        while (z < dist32)
         {
             //# Find line on map. This calculation corresponds to a field of view of 90°
             auto pleft = math::vec2{ ((-cosphi*z - sinphi*z) + p.x, ( sinphi*z - cosphi*z) + p.y) };
             auto pright = math::vec2{ (( cosphi*z - sinphi*z) + p.x, (-sinphi*z - cosphi*z) + p.y) };
 
             //# segment the line
-            math::fixed32 dx = static_cast<math::fixed32>(static_cast<int16_t>((pright.x - pleft.x) / screen_width));
-            math::fixed32 dy = static_cast<math::fixed32>(static_cast<int16_t>((pright.y - pleft.y) / screen_width));
+            math::fixed32 dx = static_cast<math::fixed32>(static_cast<int16_t>((pright.x - pleft.x) / math::fixed32(screen_width)));
+            math::fixed32 dy = static_cast<math::fixed32>(static_cast<int16_t>((pright.y - pleft.y) / math::fixed32(screen_width)));
 
             //# Raster line and draw a vertical line for each segment
-            for (math::fixed32 i=0.0_fx; i < screen_width;i = i + 1.0_fx)
+            for (math::fixed32 i=0.0_fx; i < math::fixed32(screen_width); i = i + 1.0_fx)
             {
-                auto height_on_screen = (height - hm[pleft.x, pleft.y]) / z * scale_height + horizon;
-                //lineVertical(i, height_on_screen, ybuffer[i], cm[pleft.x, pleft.y]);
-                if (height_on_screen < ybuffer[i])
-                {
-                    ybuffer[i] = height_on_screen;
-                }
+                // auto height_on_screen = (height - hm[pleft.x, pleft.y]) / z * scale_height + horizon;
+                // //lineVertical(i, height_on_screen, ybuffer[i], cm[pleft.x, pleft.y]);
+                // if (height_on_screen < ybuffer[i])
+                // {
+                //     ybuffer[i] = height_on_screen;
+                // }
                 pleft.x = pleft.x + dx;
                 pleft.y = pleft.y + dy;
             }
@@ -391,14 +389,14 @@ private:
     void* vertex_pointer_ = nullptr;
     uint16_t* color_pointer_ = nullptr;
 
-    std::array<math::vec4, MAX_VERTS> pre_clip_vert_buf_;
+    ffr::util::array<math::vec4, MAX_VERTS> pre_clip_vert_buf_;
     uint16_t pre_clip_vert_buf_current_size_ = 0;
-    std::array<uint16_t, MAX_VERTS > pre_clip_color_buf_;
+    ffr::util::array<uint16_t, MAX_VERTS > pre_clip_color_buf_;
     uint16_t pre_clip_color_buf_current_size_ = 0;
 
-    std::array<math::vec4, MAX_VERTS> post_clip_vert_buf_;
+    ffr::util::array<math::vec4, MAX_VERTS> post_clip_vert_buf_;
     uint16_t post_clip_vert_buf_current_size_ = 0;
-    std::array<uint16_t, MAX_VERTS> post_clip_color_buf_;
+    ffr::util::array<uint16_t, MAX_VERTS> post_clip_color_buf_;
     uint16_t post_clip_color_buf_current_size_ = 0;
 
     VertexFunction* vertex_function_ = nullptr;
@@ -406,7 +404,7 @@ private:
     auto vertex_pipeline() -> void
     {
 
-        std::array<math::vec4, 27> post_clip_verts;
+        ffr::util::array<math::vec4, 27> post_clip_verts;
         uint16_t post_clip_verts_size = 0;
 
         //run vertex shader
@@ -517,7 +515,7 @@ private:
     // Clip a triangle against all 6 homogeneous clip planes and triangulate result
     // Returns number of output vertices (always a multiple of 3)
     // Output contains triangulated vertices (every 3 vertices form a triangle)
-    auto clip_triangle(math::vec4 v0, math::vec4 v1, math::vec4 v2, std::array<math::vec4, 27>& output) -> int
+    auto clip_triangle(math::vec4 v0, math::vec4 v1, math::vec4 v2, ffr::util::array<math::vec4, 27>& output) -> int
     {
         // Define the 6 clipping planes in homogeneous space
         // For a vertex v = (x, y, z, w), the planes are:

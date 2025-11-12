@@ -19,7 +19,7 @@ uint16_t car[12] =
     ffr::Convert888to555(0,255,255),ffr::Convert888to555(0,255,255),
 };
 
-const auto cv = ffr::util::createCube(1.0_fx, 1.0_fx, 1.0_fx);
+auto const cv = ffr::util::createCube(1.0_fx, 1.0_fx, 1.0_fx);
 
 class SDL_Context : public ffr::Context<128>
 {
@@ -87,7 +87,7 @@ auto main(int argc, char *argv[]) -> int
     c.setColorPointer(car);
 
     VF vf;
-    ffr::math::fixed32 g = 0.0_fx;
+    ffr::math::fixed32 g = -3.0_fx;
 
 
 
@@ -130,10 +130,10 @@ auto main(int argc, char *argv[]) -> int
         c.present();
 
 
-        vf.mv = ffr::math::mat4::translation(ffr::math::vec3{0.0_fx,0.0_fx,g/3.0_fx});
-        vf.mv = vf.mv * ffr::math::mat4::rotationX(g);
+        vf.mv = ffr::math::mat4::translation(ffr::math::vec3{0.0_fx,0.0_fx,-6.0_fx});
+        //vf.mv = vf.mv * ffr::math::mat4::rotationX(g);
         vf.mv = vf.mv * ffr::math::mat4::rotationY(g);
-        vf.mv = vf.mv * ffr::math::mat4::rotationZ(g);
+        //vf.mv = vf.mv * ffr::math::mat4::rotationZ(g);
         g = g - 0.001_fx;
         vf.pj = ffr::math::mat4::perspective(90.0_fx,0.6666_fx,1.0_fx, 1000.0_fx);
 
