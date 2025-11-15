@@ -100,7 +100,7 @@ consteval auto operator""_fx(long double f) -> math::fixed32
     return r;
 }
 
-static constexpr std::uint16_t GAMDEG_IN_CIRCLE = 256; //360 = degrees, 21600 = minutes
+static constexpr std::uint16_t GAMDEG_IN_CIRCLE = 512; //360 = degrees, 21600 = minutes
 
 constexpr fixed32 PI = 3.14159265_fx;
 constexpr fixed32 TAU = 6.28318530_fx;
@@ -222,23 +222,20 @@ constexpr auto sin(fixed32 const a) -> fixed32
 {
     constexpr auto SINTABLE = makeSinTable();
 
-        //return static_cast<fixed32>(std::sinf(static_cast<float>(a)));
-        fixed32 const gd = a * RAD_TO_GAMDEG;
-        int16_t const gdi = clampGamdeg(static_cast<int16_t>(gd));
+    fixed32 const gd = a * RAD_TO_GAMDEG;
+    int16_t const gdi = clampGamdeg(static_cast<int16_t>(gd));
 
-        return fixed32{SINTABLE[gdi]};
+    return fixed32{SINTABLE[gdi]};
 }
 
 constexpr auto cos(fixed32 const a) -> fixed32
 {
     constexpr LUT COSTABLE = makeCosTable();
 
-        //return static_cast<fixed32>(std::cosf(static_cast<float>(a)));
+    fixed32 const gd = a * RAD_TO_GAMDEG;
+    int16_t const gdi = clampGamdeg(static_cast<int16_t>(gd));
 
-        fixed32 const gd = a * RAD_TO_GAMDEG;
-        int16_t const gdi = clampGamdeg(static_cast<int16_t>(gd));
-
-        return fixed32{COSTABLE[gdi]};
+    return fixed32{COSTABLE[gdi]};
 }
 
 constexpr auto tan(fixed32 const n) -> fixed32

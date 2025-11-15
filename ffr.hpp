@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <cmath>
 
 #include "ffrmath.hpp"
 
@@ -58,7 +57,7 @@ public:
 
     virtual auto line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color) -> void
     {
-        bool const steep = std::abs(y1 - y0) > std::abs(x1 - x0);
+        bool const steep = math::abs(y1 - y0) > math::abs(x1 - x0);
 
         if (steep)
         {
@@ -83,7 +82,7 @@ public:
         }
 
         int16_t const dx    = x1 - x0;
-        int16_t const dy    = std::abs(y1 - y0);
+        int16_t const dy    = math::abs(y1 - y0);
         int16_t error = dx / 2;
         int16_t const ystep = (y0 < y1) ? 1 : -1;
         int16_t y     = y0;

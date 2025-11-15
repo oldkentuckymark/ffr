@@ -81,18 +81,15 @@ auto main(int argc, char *argv[]) -> int
 
     SDL_Init(SDL_INIT_VIDEO);
 
-    SDL_Context c;
-    c.setViewPort(240,160);
-    c.setVertexPointer(3, (void*)(cv.data()));
-    c.setColorPointer(car);
-
     VF vf;
+    vf.pj = ffr::math::mat4::perspective(90.0_fx,0.6666_fx,1.0_fx, 1000.0_fx);
     ffr::math::fixed32 g = -3.0_fx;
 
-
-
+    SDL_Context c;
+    c.setViewPort(240,160);
     c.setVertexFunction(&vf);
-
+    c.setVertexPointer(3, (void*)(cv.data()));
+    c.setColorPointer(car);
 
     bool running = true;
     while (running)
@@ -120,22 +117,17 @@ auto main(int argc, char *argv[]) -> int
 
         }
 
-        //const auto sintable = ffr::math::makeTable< int,30,std::sinf >;
         c.clear();
 
         c.drawArray(ffr::DrawType::Triangles, 0, 36);
 
-        //c.triangle(20,20,50,25,30,80,UINT16_MAX);
 
         c.present();
 
 
         vf.mv = ffr::math::mat4::translation(ffr::math::vec3{0.0_fx,0.0_fx,-6.0_fx});
-        //vf.mv = vf.mv * ffr::math::mat4::rotationX(g);
         vf.mv = vf.mv * ffr::math::mat4::rotationY(g);
-        //vf.mv = vf.mv * ffr::math::mat4::rotationZ(g);
         g = g - 0.001_fx;
-        vf.pj = ffr::math::mat4::perspective(90.0_fx,0.6666_fx,1.0_fx, 1000.0_fx);
 
 
     }
