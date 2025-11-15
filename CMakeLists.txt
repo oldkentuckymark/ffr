@@ -27,7 +27,7 @@ if(UNIX)
 endif()
 
 
-
+target_include_directories(ffrtest PUBLIC "$ENV{VULKAN_SDK}/Include")
 target_compile_features(ffrtest PUBLIC cxx_std_23)
 set_target_properties(ffrtest PROPERTIES CXX_EXTENSIONS OFF)
 target_link_libraries(ffrtest ${SDL2MAIN_LIBRARY} ${SDL2_LIBRARY})

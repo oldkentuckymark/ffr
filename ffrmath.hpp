@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cmath>
 #include <cstdint>
+#include <compare>
 
 #include "util.hpp"
 
@@ -51,7 +51,7 @@ public:
 
     constexpr explicit operator int16_t() const { return data >> FIX_SHIFT; }
 
-    consteval explicit operator float() const { return data / FIX_SCALEF; }
+    //consteval explicit operator float() const { return data / FIX_SCALEF; }
 
     constexpr auto operator+(fixed32 const that) const -> fixed32
     {
@@ -222,56 +222,33 @@ constexpr auto sin(fixed32 const a) -> fixed32
 {
     constexpr auto SINTABLE = makeSinTable();
 
-    if consteval
-    {
-        return static_cast<fixed32>(std::sinf(static_cast<float>(a)));
-    }
-    else
-    {
         //return static_cast<fixed32>(std::sinf(static_cast<float>(a)));
         fixed32 const gd = a * RAD_TO_GAMDEG;
         int16_t const gdi = clampGamdeg(static_cast<int16_t>(gd));
 
         return fixed32{SINTABLE[gdi]};
-    }
 }
 
 constexpr auto cos(fixed32 const a) -> fixed32
 {
     constexpr LUT COSTABLE = makeCosTable();
-    if consteval
-    {
-        return static_cast<fixed32>(std::cosf(static_cast<float>(a)));
-    }
-    else
-    {
+
         //return static_cast<fixed32>(std::cosf(static_cast<float>(a)));
 
         fixed32 const gd = a * RAD_TO_GAMDEG;
         int16_t const gdi = clampGamdeg(static_cast<int16_t>(gd));
 
         return fixed32{COSTABLE[gdi]};
-    }
 }
 
 constexpr auto tan(fixed32 const n) -> fixed32
 {
-    if consteval {
-        return static_cast<fixed32>(
-            std::sinf(static_cast<float>(n) / std::cosf(static_cast<float>(n))));
-    } else {
-        return sin(n) / cos(n);
-    }
+    return sin(n) / cos(n);
 }
 
 constexpr auto cot(fixed32 const n) -> fixed32
 {
-    if consteval {
-        return static_cast<fixed32>(
-            std::cosf(static_cast<float>(n) / std::sinf(static_cast<float>(n))));
-    } else {
-        return cos(n) / sin(n);
-    }
+    return cos(n) / sin(n);
 }
 
 constexpr auto abs(auto n) -> decltype(n)
