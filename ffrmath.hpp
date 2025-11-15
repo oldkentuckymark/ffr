@@ -5,7 +5,8 @@
 
 #include "util.hpp"
 
-namespace ffr::math {
+namespace ffr::math
+{
 
 class fixed32 //16.16
 {
@@ -22,7 +23,7 @@ public:
         : data(that << FIX_SHIFT)
     {}
 
-    constexpr explicit fixed32(float const &that)
+    consteval explicit fixed32(float const &that)
         : data(static_cast<int32_t>(that * FIX_SCALEF))
     {}
 
@@ -37,7 +38,7 @@ public:
         return (*this);
     }
 
-    constexpr auto operator=(float const that) -> fixed32 &
+    consteval auto operator=(float const that) -> fixed32 &
     {
         data = static_cast<int32_t>(that * FIX_SCALEF);
         return (*this);
@@ -50,7 +51,7 @@ public:
 
     constexpr explicit operator int16_t() const { return data >> FIX_SHIFT; }
 
-    constexpr explicit operator float() const { return data / FIX_SCALEF; }
+    consteval explicit operator float() const { return data / FIX_SCALEF; }
 
     constexpr auto operator+(fixed32 const that) const -> fixed32
     {
@@ -99,7 +100,7 @@ consteval auto operator""_fx(long double f) -> math::fixed32
     return r;
 }
 
-static constexpr std::int16_t GAMDEG_IN_CIRCLE = 512; //360 = degrees, 21600 = minutes
+static constexpr std::uint16_t GAMDEG_IN_CIRCLE = 256; //360 = degrees, 21600 = minutes
 
 constexpr fixed32 PI = 3.14159265_fx;
 constexpr fixed32 TAU = 6.28318530_fx;
@@ -111,7 +112,8 @@ constexpr fixed32 RAD_TO_GAMDEG = fixed32(GAMDEG_IN_CIRCLE / TAUF);
 constexpr auto factorial(auto const n) -> decltype(n)
 {
     decltype(n) r = 1;
-    for (decltype(n) i = n; i > 1; --i) {
+    for (decltype(n) i = n; i > 1; --i)
+    {
         r = r * i;
     }
     return r;
@@ -140,21 +142,29 @@ consteval auto taylorSin(float const x) -> float
 
 consteval auto makeSinTable() -> LUT
 {
-    const int16_t chunkSize = GAMDEG_IN_CIRCLE/4;
+    uint16_t const quadrantSize = GAMDEG_IN_CIRCLE/4;
     LUT r{};
-    //calc for first 4th of circle (90 degrees)
-    for (uint16_t i = 0; i < chunkSize; ++i) {
+
+    uint16_t k = (quadrantSize*2);
+    for (uint16_t i = 0; i <= quadrantSize; ++i)
+    {
         float x = (TAUF / GAMDEG_IN_CIRCLE) * i;
         r[i] = taylorSin(x);
+        r[k] = r[i];
+        --k;
     }
-    //manualy set the four special values(0,pi/2,pi,3pi/2)
-    r[chunkSize * 0] = 0.0_fx;
-    r[chunkSize * 1] = 1.0_fx;
-    r[chunkSize * 2] = 0.0_fx;
-    r[chunkSize * 3] = -1.0_fx;
 
-    //now copy the values to the rest of the array
+    k = quadrantSize*2;
+    for(uint16_t  i = 0; i < quadrantSize*2; ++i)
+    {
+        r[k] = -r[i];
+        ++k;
+    }
 
+    r[quadrantSize * 0] = 0.0_fx;
+    r[quadrantSize * 1] = 1.0_fx;
+    r[quadrantSize * 2] = 0.0_fx;
+    r[quadrantSize * 3] = -1.0_fx;
 
     return r;
 }
@@ -169,7 +179,29 @@ consteval auto taylorCos(float const x) -> float
 
 consteval auto makeCosTable() -> LUT
 {
-    LUT r;
+    const uint16_t quadrantSize = GAMDEG_IN_CIRCLE/4;
+    LUT r{};
+
+    uint16_t k = (quadrantSize*2);
+    for (uint16_t i = 0; i <= quadrantSize; ++i)
+    {
+        float x = (TAUF / GAMDEG_IN_CIRCLE) * i;
+        r[i] = taylorCos(x);
+        r[k] = -r[i];
+        --k;
+    }
+
+    k = quadrantSize*2;
+    for(uint16_t  i = 0; i < quadrantSize*2; ++i)
+    {
+        r[k] = -r[i];
+        ++k;
+    }
+
+    r[quadrantSize * 0] = 1.0_fx;
+    r[quadrantSize * 1] = 0.0_fx;
+    r[quadrantSize * 2] = -1.0_fx;
+    r[quadrantSize * 3] = 0.0_fx;
 
     return r;
 }
@@ -190,9 +222,12 @@ constexpr auto sin(fixed32 const a) -> fixed32
 {
     constexpr auto SINTABLE = makeSinTable();
 
-    if consteval {
+    if consteval
+    {
         return static_cast<fixed32>(std::sinf(static_cast<float>(a)));
-    } else {
+    }
+    else
+    {
         //return static_cast<fixed32>(std::sinf(static_cast<float>(a)));
         fixed32 const gd = a * RAD_TO_GAMDEG;
         int16_t const gdi = clampGamdeg(static_cast<int16_t>(gd));
@@ -204,9 +239,12 @@ constexpr auto sin(fixed32 const a) -> fixed32
 constexpr auto cos(fixed32 const a) -> fixed32
 {
     constexpr LUT COSTABLE = makeCosTable();
-    if consteval {
+    if consteval
+    {
         return static_cast<fixed32>(std::cosf(static_cast<float>(a)));
-    } else {
+    }
+    else
+    {
         //return static_cast<fixed32>(std::cosf(static_cast<float>(a)));
 
         fixed32 const gd = a * RAD_TO_GAMDEG;

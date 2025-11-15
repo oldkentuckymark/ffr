@@ -2,7 +2,7 @@
 #include "util.hpp"
 
 #include <SDL2/SDL.h>
-
+#include <cstdint>
 
 ffr::math::fixed32 par[18] =
 {
